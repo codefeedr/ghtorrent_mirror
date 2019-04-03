@@ -57,7 +57,31 @@ object Main {
       .setBufferProperty(KafkaBuffer.COMPRESSION_TYPE, "gzip")
       .setBufferProperty(KafkaBuffer.BROKER, "localhost:29092")
       .setBufferProperty(KafkaBuffer.ZOOKEEPER, "localhost:2181")
-      .edge(inputStage, List())
-
+      .edge(
+        inputStage,
+        List(
+          commitStage,
+          commitcommentStage,
+          pushStage,
+          createStage,
+          deleteStage,
+          deploymentStage,
+          deploymentStatusStage,
+          gollumStage,
+          memberShipStage,
+          publicStage,
+          releaseStage,
+          repoStage,
+          teamAddStage,
+          forkStage,
+          issueComment,
+          issueStage,
+          memberStage,
+          prStage,
+          prRCStage
+        )
+      )
+      .build()
+      .start(args)
   }
 }
