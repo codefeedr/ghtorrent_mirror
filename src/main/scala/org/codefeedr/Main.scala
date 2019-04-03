@@ -7,9 +7,12 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.pipeline.PipelineBuilder
-import org.codefeedr.plugins.ghtorrent.stages.{GHTInputStage, SideOutput}
-import org.codefeedr.stages.OutputStage
-import org.codefeedr.stages.utilities.{StringInput, StringType}
+import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages._
+import org.codefeedr.plugins.ghtorrent.stages.{
+  GHTCommitStage,
+  GHTInputStage,
+  SideOutput
+}
 
 object Main {
 
@@ -24,6 +27,16 @@ object Main {
   val pushStage = new GHTPushEventStage(sideOutput = sideOutput)
   val createStage = new GHTCreateEventStage(sideOutput = sideOutput)
   val deleteStage = new GHTDeleteEventStage(sideOutput = sideOutput)
+
+  val deploymentStage = new GHTDeploymentEventStage(sideOutput = sideOutput)
+  val deploymentStatusStage = new GHTDeploymentStatusEventStage(
+    sideOutput = sideOutput)
+  val gollumStage = new GHTGolumEventStage(sideOutput = sideOutput)
+  val memberShipStage = new GHTMemberShipEventStage(sideOutput = sideOutput)
+  val publicStage = new GHTPublicEventStage(sideOutput = sideOutput)
+  val releaseStage = new GHRecordToReleaseEventStage(sideOutput = sideOutput)
+  val repoStage = new GHTRepositoryEventStage(sideOutput = sideOutput)
+  val teamAddStage = new GHTTeamAddEventStage(sideOutput = sideOutput)
 
   val forkStage = new GHTForkEventStage(sideOutput = sideOutput)
   val issueComment = new GHTIssueCommentEventStage(sideOutput = sideOutput)
