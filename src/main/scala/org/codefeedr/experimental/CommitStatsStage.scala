@@ -26,8 +26,7 @@ import scala.collection.mutable.Map
 class CommitStatsStage extends TransformStage[Commit, Stats] {
 
   val lateOutputTag = OutputTag[Commit]("late-data")
-  override def transform(
-      source: DataStream[Commit]): DataStream[ReducedCommit] = {
+  override def transform(source: DataStream[Commit]): DataStream[Stats] = {
     val trans = source.rebalance
       .assignTimestampsAndWatermarks(
         new BoundedOutOfOrdernessTimestampExtractor[Commit](Time.hours(1)) {
