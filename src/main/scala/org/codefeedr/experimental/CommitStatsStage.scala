@@ -161,5 +161,16 @@ class MinimizeCommit
     val newDeletions = a.totalDeletions + b.totalDeletions
     val newFilesAdded = a.filesAdded + b.filesAdded
     val newFilesModified = a.filesModified + b.filesModified
+    val newFilesRemoved = a.filesRemoved + b.filesRemoved
+    val newMap = a.filesEdited ++ b.filesEdited
+
+    ReducedCommit(a.user,
+                  a.repo,
+                  newAdditions,
+                  newDeletions,
+                  newFilesAdded,
+                  newFilesModified,
+                  newFilesRemoved,
+                  newMap)
   }
 }
