@@ -7,12 +7,12 @@ object StatsObjects {
 
   case class Stats(date: String, reducedCommit: ReducedCommits)
 
-  case class ReducedCommits(totalCommits: Int,
-                            totalAdditions: Int,
-                            totalDeletions: Int,
-                            filesAdded: Int,
-                            filesModified: Int,
-                            filesRemoved: Int,
-                            filesEdited: Map[String, Map[String, Int]])
+  case class ReducedCommits(totalCommits: Long,
+                            totalAdditions: Long,
+                            totalDeletions: Long,
+                            filesAdded: Long,
+                            filesModified: Long,
+                            filesRemoved: Long,
+                            filesEdited: Map[String, Map[String, Long]])
 
 }

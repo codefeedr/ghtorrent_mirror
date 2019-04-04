@@ -23,32 +23,34 @@ import org.apache.flink.streaming.api.scala.function.{
   ProcessWindowFunction
 }
 import org.apache.flink.streaming.api.scala.function.util.ScalaFoldFunction
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger
+import org.apache.flink.streaming.api.windowing.triggers.{
+  CountTrigger,
+  EventTimeTrigger
+}
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
 import scala.collection.mutable.Map
 
-class CommitStatsStage(stageName: String = "daily_commit_stats")
+class CommitStatsStage(stageName: String = "daily_commits_stats")
     extends TransformStage[Commit, Stats](Some(stageName)) {
 
   val lateOutputTag = OutputTag[Commit]("late-data")
   override def transform(source: DataStream[Commit]): DataStream[Stats] = {
     val trans = source.rebalance
       .assignTimestampsAndWatermarks(
-        new BoundedOutOfOrdernessTimestampExtractor[Commit](Time.days(1)) {
+        new BoundedOutOfOrdernessTimestampExtractor[Commit](Time.days(31)) {
           override def extractTimestamp(element: Commit): Long =
             element.commit.committer.date.getTime
         })
       .timeWindowAll(Time.days(1))
-      .allowedLateness(Time.days(1))
-      .sideOutputLateData(lateOutputTag)
-      .trigger(EventTimeTrigger.create())
+      .allowedLateness(Time.days(31))
+      .trigger(CountTrigger.of(1000))
       .aggregate(new MinimizeCommit, new ProcessCommitWindow)
 
     trans
       .getSideOutput(lateOutputTag)
-      .map(_.commit.committer.date)
+      .map(x => (x.commit.committer.date, x.commit.author.date))
       .print()
 
     trans
@@ -76,7 +78,7 @@ class MinimizeCommit
     extends AggregateFunction[Commit, ReducedCommits, ReducedCommits] {
 
   override def createAccumulator(): ReducedCommits = {
-    ReducedCommits(0, 0, 0, 0, 0, 0, Map.empty[String, Map[String, Int]])
+    ReducedCommits(0, 0, 0, 0, 0, 0, Map.empty[String, Map[String, Long]])
   }
 
   override def add(value: Commit,
@@ -102,11 +104,11 @@ class MinimizeCommit
   }
 
   def mergeFiles(
-      added: Int,
-      removed: Int,
-      modified: Int,
-      fileMap: Map[String, Map[String, Int]],
-      value: Commit): (Int, Int, Int, Map[String, Map[String, Int]]) = {
+      added: Long,
+      removed: Long,
+      modified: Long,
+      fileMap: Map[String, Map[String, Long]],
+      value: Commit): (Long, Long, Long, Map[String, Map[String, Long]]) = {
 
     var filesAdded = added
     var filesRemoved = removed
@@ -127,16 +129,16 @@ class MinimizeCommit
       if (extensionMap.isDefined) {
         val additions = extensionMap.get
           .get("additions")
-          .getOrElse(0) + file.additions
+          .getOrElse(0L) + file.additions
         val deletions = extensionMap.get
           .get("deletions")
-          .getOrElse(0) + file.deletions
+          .getOrElse(0L) + file.deletions
 
         extensionMap.get.update("additions", additions)
         extensionMap.get.update("deletions", deletions)
       } else { // If it is not defined then insert the amount of additions and deletions for that extensions.
-        val additions = file.additions
-        val deletions = file.deletions
+        val additions = file.additions.toLong
+        val deletions = file.deletions.toLong
         val map = Map("additions" -> additions, "deletions" -> deletions)
 
         fileMap.update(extension, map)
