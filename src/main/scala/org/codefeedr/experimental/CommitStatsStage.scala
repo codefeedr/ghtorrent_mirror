@@ -1,7 +1,9 @@
 package org.codefeedr.experimental
 
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.Date
 
 import org.apache.flink.api.common.functions.{
@@ -12,7 +14,7 @@ import org.apache.flink.api.common.functions.{
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag}
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.codefeedr.experimental.Stats.{ReducedCommit, Stats}
+import org.codefeedr.experimental.StatsObjects._
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 import org.codefeedr.stages.TransformStage
 import org.apache.flink.api.scala._
@@ -23,7 +25,8 @@ import org.apache.flink.util.Collector
 
 import scala.collection.mutable.Map
 
-class CommitStatsStage extends TransformStage[Commit, Stats] {
+class CommitStatsStage(stageName: String = "commit_stats")
+    extends TransformStage[Commit, Stats](Some(stageName)) {
 
   val lateOutputTag = OutputTag[Commit]("late-data")
   override def transform(source: DataStream[Commit]): DataStream[Stats] = {
@@ -64,16 +67,14 @@ class ProcessCommitWindow
     }
 
     val reducedCommit = elements.iterator.next()
-    val window = Instant.ofEpochMilli(context.window.getStart * 1000L)
-    val dayFormat = DateTimeFormatter.ofPattern("d MMMM yyyy")
+    val window = Instant.ofEpochMilli(context.window.getStart)
 
-    val day = dayFormat.format(window)
-
-    out.collect(Stats(key, day, reducedCommit))
+    out.collect(
+      Stats(key, window.truncatedTo(ChronoUnit.DAYS).toString, reducedCommit))
   }
 }
 class MinimizeCommit
-    extends RichAggregateFunction[Commit, ReducedCommit, ReducedCommit] {
+    extends AggregateFunction[Commit, ReducedCommit, ReducedCommit] {
 
   override def createAccumulator(): ReducedCommit = {
     ReducedCommit("", "", 0, 0, 0, 0, 0, Map.empty[String, Map[String, Int]])
@@ -168,6 +169,7 @@ class MinimizeCommit
           case "added"    => filesAdded += 1
           case "removed"  => filesRemoved += 1
           case "modified" => filesModified += 1
+          case _          =>
         }
       }
     }

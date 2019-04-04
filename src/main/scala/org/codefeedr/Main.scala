@@ -6,6 +6,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.codefeedr.buffer.KafkaBuffer
+import org.codefeedr.experimental.CommitStatsStage
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages._
 import org.codefeedr.plugins.ghtorrent.stages.{
@@ -81,6 +82,7 @@ object Main {
           prRCStage
         )
       )
+      .edge(commitStage, new CommitStatsStage)
       .build()
       .start(args)
   }

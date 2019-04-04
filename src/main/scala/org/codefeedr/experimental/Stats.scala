@@ -3,7 +3,7 @@ import java.util.Date
 
 import scala.collection.mutable.Map
 
-object Stats {
+object StatsObjects {
 
   case class Stats(key: (String, String),
                    date: String,
