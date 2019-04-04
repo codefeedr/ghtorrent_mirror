@@ -54,13 +54,13 @@ class CommitStatsStage(stageName: String = "commit_stats")
   }
 }
 class ProcessCommitWindow
-    extends ProcessWindowFunction[ReducedCommit,
+    extends ProcessWindowFunction[ReducedCommits,
                                   Stats,
                                   (String, String),
                                   TimeWindow] {
   override def process(key: (String, String),
                        context: Context,
-                       elements: Iterable[ReducedCommit],
+                       elements: Iterable[ReducedCommits],
                        out: Collector[Stats]): Unit = {
     if (elements.iterator.size > 1) {
       println("The iterator size is bigger than 1. That should be impossible.")
@@ -70,17 +70,28 @@ class ProcessCommitWindow
     val window = Instant.ofEpochMilli(context.window.getStart)
 
     out.collect(
-      Stats(key, window.truncatedTo(ChronoUnit.DAYS).toString, reducedCommit))
+      Stats(
+        window.plus(12, ChronoUnit.HOURS).truncatedTo(ChronoUnit.DAYS).toString,
+        reducedCommit))
   }
 }
 class MinimizeCommit
-    extends AggregateFunction[Commit, ReducedCommit, ReducedCommit] {
+    extends AggregateFunction[Commit, ReducedCommits, ReducedCommits] {
 
-  override def createAccumulator(): ReducedCommit = {
-    ReducedCommit("", "", 0, 0, 0, 0, 0, Map.empty[String, Map[String, Int]])
+  override def createAccumulator(): ReducedCommits = {
+    ReducedCommits("",
+                   "",
+                   0,
+                   0,
+                   0,
+                   0,
+                   0,
+                   0,
+                   Map.empty[String, Map[String, Int]])
   }
 
-  override def add(value: Commit, accumulator: ReducedCommit): ReducedCommit = {
+  override def add(value: Commit,
+                   accumulator: ReducedCommits): ReducedCommits = {
     if (value.stats.isEmpty) return accumulator //if there are no stats we ignore this commit
 
     // the accumulator is still empty
@@ -94,14 +105,15 @@ class MinimizeCommit
       val mergedFiles =
         mergeFiles(0, 0, 0, Map.empty[String, Map[String, Int]], value)
 
-      return ReducedCommit(user,
-                           repo,
-                           additions,
-                           deletions,
-                           mergedFiles._1,
-                           mergedFiles._2,
-                           mergedFiles._3,
-                           mergedFiles._4)
+      return ReducedCommits(user,
+                            repo,
+                            additions,
+                            deletions,
+                            1,
+                            mergedFiles._1,
+                            mergedFiles._2,
+                            mergedFiles._3,
+                            mergedFiles._4)
     }
 
     val newAdditions = accumulator.totalAdditions + value.stats.get.additions
@@ -111,15 +123,17 @@ class MinimizeCommit
                                  accumulator.filesModified,
                                  accumulator.filesEdited,
                                  value)
+    val newCommits = accumulator.totalCommits + 1
 
-    return ReducedCommit(accumulator.user,
-                         accumulator.repo,
-                         newAdditions,
-                         newDeletions,
-                         mergedFiles._1,
-                         mergedFiles._2,
-                         mergedFiles._3,
-                         mergedFiles._4)
+    return ReducedCommits(accumulator.user,
+                          accumulator.repo,
+                          newCommits,
+                          newAdditions,
+                          newDeletions,
+                          mergedFiles._1,
+                          mergedFiles._2,
+                          mergedFiles._3,
+                          mergedFiles._4)
   }
 
   def mergeFiles(
@@ -177,10 +191,10 @@ class MinimizeCommit
     (filesAdded, filesModified, filesRemoved, fileMap)
   }
 
-  override def getResult(accumulator: ReducedCommit): ReducedCommit =
+  override def getResult(accumulator: ReducedCommits): ReducedCommits =
     accumulator
 
-  override def merge(a: ReducedCommit, b: ReducedCommit): ReducedCommit = {
+  override def merge(a: ReducedCommits, b: ReducedCommits): ReducedCommits = {
     if (a.repo != b.repo || a.user != b.repo) {
       throw new RuntimeException(
         s"Excepted a ReducedCommit from the same repository but instead got two different: ${a.user}/${a.repo} and ${b.user}/${b.repo}")
@@ -188,18 +202,20 @@ class MinimizeCommit
 
     val newAdditions = a.totalAdditions + b.totalAdditions
     val newDeletions = a.totalDeletions + b.totalDeletions
+    val newCommits = a.totalCommits + b.totalCommits
     val newFilesAdded = a.filesAdded + b.filesAdded
     val newFilesModified = a.filesModified + b.filesModified
     val newFilesRemoved = a.filesRemoved + b.filesRemoved
     val newMap = a.filesEdited ++ b.filesEdited
 
-    ReducedCommit(a.user,
-                  a.repo,
-                  newAdditions,
-                  newDeletions,
-                  newFilesAdded,
-                  newFilesModified,
-                  newFilesRemoved,
-                  newMap)
+    ReducedCommits(a.user,
+                   a.repo,
+                   newCommits,
+                   newAdditions,
+                   newDeletions,
+                   newFilesAdded,
+                   newFilesModified,
+                   newFilesRemoved,
+                   newMap)
   }
 }

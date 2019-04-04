@@ -5,17 +5,16 @@ import scala.collection.mutable.Map
 
 object StatsObjects {
 
-  case class Stats(key: (String, String),
-                   date: String,
-                   reducedCommit: ReducedCommit)
+  case class Stats(date: String, reducedCommit: ReducedCommits)
 
-  case class ReducedCommit(user: String,
-                           repo: String,
-                           totalAdditions: Int,
-                           totalDeletions: Int,
-                           filesAdded: Int,
-                           filesModified: Int,
-                           filesRemoved: Int,
-                           filesEdited: Map[String, Map[String, Int]])
+  case class ReducedCommits(user: String,
+                            repo: String,
+                            totalCommits: Int,
+                            totalAdditions: Int,
+                            totalDeletions: Int,
+                            filesAdded: Int,
+                            filesModified: Int,
+                            filesRemoved: Int,
+                            filesEdited: Map[String, Map[String, Int]])
 
 }
