@@ -1,5 +1,9 @@
 package org.codefeedr.experimental
 
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.Date
+
 import org.apache.flink.api.common.functions.{
   AggregateFunction,
   ReduceFunction,
@@ -12,7 +16,10 @@ import org.codefeedr.experimental.Stats.{ReducedCommit, Stats}
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 import org.codefeedr.stages.TransformStage
 import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
 import org.apache.flink.streaming.api.scala.function.util.ScalaFoldFunction
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
+import org.apache.flink.util.Collector
 
 import scala.collection.mutable.Map
 
@@ -37,14 +44,35 @@ class CommitStatsStage extends TransformStage[Commit, Stats] {
       .timeWindow(Time.days(1))
       .allowedLateness(Time.hours(1))
       .sideOutputLateData(lateOutputTag)
-      .aggregate(new MinimizeCommit)
+      .aggregate(new MinimizeCommit, new ProcessCommitWindow)
 
     trans.getSideOutput(lateOutputTag).print()
 
     trans
   }
 }
+class ProcessCommitWindow
+    extends ProcessWindowFunction[ReducedCommit,
+                                  Stats,
+                                  (String, String),
+                                  TimeWindow] {
+  override def process(key: (String, String),
+                       context: Context,
+                       elements: Iterable[ReducedCommit],
+                       out: Collector[Stats]): Unit = {
+    if (elements.iterator.size > 1) {
+      println("The iterator size is bigger than 1. That should be impossible.")
+    }
 
+    val reducedCommit = elements.iterator.next()
+    val window = Instant.ofEpochMilli(context.window.getStart * 1000L)
+    val dayFormat = DateTimeFormatter.ofPattern("d MMMM yyyy")
+
+    val day = dayFormat.format(window)
+
+    out.collect(Stats(key, day, reducedCommit))
+  }
+}
 class MinimizeCommit
     extends RichAggregateFunction[Commit, ReducedCommit, ReducedCommit] {
 
