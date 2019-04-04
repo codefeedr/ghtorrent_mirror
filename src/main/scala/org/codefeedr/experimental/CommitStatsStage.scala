@@ -18,48 +18,45 @@ import org.codefeedr.experimental.StatsObjects._
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 import org.codefeedr.stages.TransformStage
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
+import org.apache.flink.streaming.api.scala.function.{
+  ProcessAllWindowFunction,
+  ProcessWindowFunction
+}
 import org.apache.flink.streaming.api.scala.function.util.ScalaFoldFunction
+import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
 import scala.collection.mutable.Map
 
-class CommitStatsStage(stageName: String = "commit_stats")
+class CommitStatsStage(stageName: String = "daily_commit_stats")
     extends TransformStage[Commit, Stats](Some(stageName)) {
 
   val lateOutputTag = OutputTag[Commit]("late-data")
   override def transform(source: DataStream[Commit]): DataStream[Stats] = {
     val trans = source.rebalance
       .assignTimestampsAndWatermarks(
-        new BoundedOutOfOrdernessTimestampExtractor[Commit](Time.hours(1)) {
+        new BoundedOutOfOrdernessTimestampExtractor[Commit](Time.days(1)) {
           override def extractTimestamp(element: Commit): Long =
             element.commit.committer.date.getTime
         })
-      .keyBy { x =>
-        val split = x.url.split("/")
-        val user = split(4)
-        val repo = split(5)
-
-        (user, repo)
-      }
-      .timeWindow(Time.days(1))
-      .allowedLateness(Time.hours(1))
+      .timeWindowAll(Time.days(1))
+      .allowedLateness(Time.days(1))
       .sideOutputLateData(lateOutputTag)
+      .trigger(EventTimeTrigger.create())
       .aggregate(new MinimizeCommit, new ProcessCommitWindow)
 
-    trans.getSideOutput(lateOutputTag).print()
+    trans
+      .getSideOutput(lateOutputTag)
+      .map(_.commit.committer.date)
+      .print()
 
     trans
   }
 }
 class ProcessCommitWindow
-    extends ProcessWindowFunction[ReducedCommits,
-                                  Stats,
-                                  (String, String),
-                                  TimeWindow] {
-  override def process(key: (String, String),
-                       context: Context,
+    extends ProcessAllWindowFunction[ReducedCommits, Stats, TimeWindow] {
+  override def process(context: Context,
                        elements: Iterable[ReducedCommits],
                        out: Collector[Stats]): Unit = {
     if (elements.iterator.size > 1) {
@@ -79,42 +76,12 @@ class MinimizeCommit
     extends AggregateFunction[Commit, ReducedCommits, ReducedCommits] {
 
   override def createAccumulator(): ReducedCommits = {
-    ReducedCommits("",
-                   "",
-                   0,
-                   0,
-                   0,
-                   0,
-                   0,
-                   0,
-                   Map.empty[String, Map[String, Int]])
+    ReducedCommits(0, 0, 0, 0, 0, 0, Map.empty[String, Map[String, Int]])
   }
 
   override def add(value: Commit,
                    accumulator: ReducedCommits): ReducedCommits = {
     if (value.stats.isEmpty) return accumulator //if there are no stats we ignore this commit
-
-    // the accumulator is still empty
-    if (accumulator.repo == "" && accumulator.user == "") {
-      val split = value.url.split("/")
-      val user = split(4)
-      val repo = split(5)
-
-      val additions = value.stats.get.additions
-      val deletions = value.stats.get.deletions
-      val mergedFiles =
-        mergeFiles(0, 0, 0, Map.empty[String, Map[String, Int]], value)
-
-      return ReducedCommits(user,
-                            repo,
-                            additions,
-                            deletions,
-                            1,
-                            mergedFiles._1,
-                            mergedFiles._2,
-                            mergedFiles._3,
-                            mergedFiles._4)
-    }
 
     val newAdditions = accumulator.totalAdditions + value.stats.get.additions
     val newDeletions = accumulator.totalDeletions + value.stats.get.deletions
@@ -125,9 +92,7 @@ class MinimizeCommit
                                  value)
     val newCommits = accumulator.totalCommits + 1
 
-    return ReducedCommits(accumulator.user,
-                          accumulator.repo,
-                          newCommits,
+    return ReducedCommits(newCommits,
                           newAdditions,
                           newDeletions,
                           mergedFiles._1,
@@ -195,11 +160,6 @@ class MinimizeCommit
     accumulator
 
   override def merge(a: ReducedCommits, b: ReducedCommits): ReducedCommits = {
-    if (a.repo != b.repo || a.user != b.repo) {
-      throw new RuntimeException(
-        s"Excepted a ReducedCommit from the same repository but instead got two different: ${a.user}/${a.repo} and ${b.user}/${b.repo}")
-    }
-
     val newAdditions = a.totalAdditions + b.totalAdditions
     val newDeletions = a.totalDeletions + b.totalDeletions
     val newCommits = a.totalCommits + b.totalCommits
@@ -208,9 +168,7 @@ class MinimizeCommit
     val newFilesRemoved = a.filesRemoved + b.filesRemoved
     val newMap = a.filesEdited ++ b.filesEdited
 
-    ReducedCommits(a.user,
-                   a.repo,
-                   newCommits,
+    ReducedCommits(newCommits,
                    newAdditions,
                    newDeletions,
                    newFilesAdded,

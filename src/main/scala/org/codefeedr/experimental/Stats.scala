@@ -7,9 +7,7 @@ object StatsObjects {
 
   case class Stats(date: String, reducedCommit: ReducedCommits)
 
-  case class ReducedCommits(user: String,
-                            repo: String,
-                            totalCommits: Int,
+  case class ReducedCommits(totalCommits: Int,
                             totalAdditions: Int,
                             totalDeletions: Int,
                             filesAdded: Int,
