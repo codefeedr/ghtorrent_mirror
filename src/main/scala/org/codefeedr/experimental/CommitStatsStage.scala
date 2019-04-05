@@ -9,7 +9,8 @@ import java.util.Date
 import org.apache.flink.api.common.functions.{
   AggregateFunction,
   ReduceFunction,
-  RichAggregateFunction
+  RichAggregateFunction,
+  RichMapFunction
 }
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag}
@@ -43,22 +44,26 @@ class CommitStatsStage(stageName: String = "daily_commits_stats")
           override def extractTimestamp(element: Commit): Long =
             element.commit.committer.date.getTime
         })
-      .timeWindowAll(Time.days(1))
+      .map(new PartitionKeyMap)
+      .keyBy(0)
+      .timeWindow(Time.days(1))
       .allowedLateness(Time.days(31))
       .trigger(CountTrigger.of(1000))
-      .aggregate(new MinimizeCommit, new ProcessCommitWindow)
+      .aggregate(new MinimizeCommit, new ProcessCommitWindow())
 
+    /**
     trans
       .getSideOutput(lateOutputTag)
       .map(x => (x.commit.committer.date, x.commit.author.date))
       .print()
-
+      */
     trans
   }
 }
 class ProcessCommitWindow
-    extends ProcessAllWindowFunction[ReducedCommits, Stats, TimeWindow] {
-  override def process(context: Context,
+    extends ProcessWindowFunction[ReducedCommits, Stats, Int, TimeWindow] {
+  override def process(key: Int,
+                       context: Context,
                        elements: Iterable[ReducedCommits],
                        out: Collector[Stats]): Unit = {
     if (elements.iterator.size > 1) {
@@ -75,23 +80,23 @@ class ProcessCommitWindow
   }
 }
 class MinimizeCommit
-    extends AggregateFunction[Commit, ReducedCommits, ReducedCommits] {
+    extends AggregateFunction[(Int, Commit), ReducedCommits, ReducedCommits] {
 
   override def createAccumulator(): ReducedCommits = {
-    ReducedCommits(0, 0, 0, 0, 0, 0, Map.empty[String, Map[String, Long]])
+    ReducedCommits(0, 0, 0, 0, 0, 0, List())
   }
 
-  override def add(value: Commit,
+  override def add(value: (Int, Commit),
                    accumulator: ReducedCommits): ReducedCommits = {
-    if (value.stats.isEmpty) return accumulator //if there are no stats we ignore this commit
+    if (value._2.stats.isEmpty) return accumulator //if there are no stats we ignore this commit
 
-    val newAdditions = accumulator.totalAdditions + value.stats.get.additions
-    val newDeletions = accumulator.totalDeletions + value.stats.get.deletions
+    val newAdditions = accumulator.totalAdditions + value._2.stats.get.additions
+    val newDeletions = accumulator.totalDeletions + value._2.stats.get.deletions
     val mergedFiles = mergeFiles(accumulator.filesAdded,
                                  accumulator.filesRemoved,
                                  accumulator.filesModified,
                                  accumulator.filesEdited,
-                                 value)
+                                 value._2)
     val newCommits = accumulator.totalCommits + 1
 
     return ReducedCommits(newCommits,
@@ -103,12 +108,11 @@ class MinimizeCommit
                           mergedFiles._4)
   }
 
-  def mergeFiles(
-      added: Long,
-      removed: Long,
-      modified: Long,
-      fileMap: Map[String, Map[String, Long]],
-      value: Commit): (Long, Long, Long, Map[String, Map[String, Long]]) = {
+  def mergeFiles(added: Long,
+                 removed: Long,
+                 modified: Long,
+                 fileMap: List[Extension],
+                 value: Commit): (Long, Long, Long, List[Extension]) = {
 
     var filesAdded = added
     var filesRemoved = removed
@@ -119,29 +123,39 @@ class MinimizeCommit
 
       if (file.filename.isDefined) {
         val pattern = "\\.[0-9a-z]+$".r
-        extension = pattern.findFirstIn(file.filename.get).getOrElse("unknown")
+        extension = pattern
+          .findFirstIn(file.filename.get.replace(".", ""))
+          .getOrElse("unknown")
       }
 
       // Get extension map.
-      val extensionMap = fileMap.get(extension)
+      var newExtenionList = fileMap
+      val oldExtension = newExtenionList.find(_.name == extension)
 
       // If it is already defined then update the amount of additions and deletions.
-      if (extensionMap.isDefined) {
-        val additions = extensionMap.get
-          .get("additions")
-          .getOrElse(0L) + file.additions
-        val deletions = extensionMap.get
-          .get("deletions")
-          .getOrElse(0L) + file.deletions
+      if (oldExtension.isDefined) {
+        val additions = oldExtension.get.additions + file.additions
+        val deletions = oldExtension.get.deletions + file.deletions
+        var created = oldExtension.get.created
 
-        extensionMap.get.update("additions", additions)
-        extensionMap.get.update("deletions", deletions)
+        // There are no file changes, but there is a new file so it has been created.
+        if (file.changes == 0) {
+          created += 1
+        }
+
+        newExtenionList = newExtenionList.filter(_.name != extension)
+        newExtenionList = Extension(extension, additions, deletions, created) :: newExtenionList
+
       } else { // If it is not defined then insert the amount of additions and deletions for that extensions.
         val additions = file.additions.toLong
         val deletions = file.deletions.toLong
-        val map = Map("additions" -> additions, "deletions" -> deletions)
+        var created = 0
 
-        fileMap.update(extension, map)
+        if (file.changes == 0) {
+          created = 1
+        }
+
+        newExtenionList = Extension(extension, additions, deletions, created) :: newExtenionList
       }
 
       // Also save the file status
@@ -168,7 +182,17 @@ class MinimizeCommit
     val newFilesAdded = a.filesAdded + b.filesAdded
     val newFilesModified = a.filesModified + b.filesModified
     val newFilesRemoved = a.filesRemoved + b.filesRemoved
-    val newMap = a.filesEdited ++ b.filesEdited
+    val newMap = (a.filesEdited ++ b.filesEdited)
+      .groupBy(_.name)
+      .mapValues(_.foldLeft((0L, 0L, 0L)) {
+        case ((add, del, create),
+              Extension(name, additions, deletions, created)) =>
+          (add + additions, del + deletions, create + created)
+      })
+      .map {
+        case (key, (add, del, create)) => Extension(key, add, del, create)
+      }
+      .toList
 
     ReducedCommits(newCommits,
                    newAdditions,
@@ -177,5 +201,11 @@ class MinimizeCommit
                    newFilesModified,
                    newFilesRemoved,
                    newMap)
+  }
+}
+
+class PartitionKeyMap() extends RichMapFunction[Commit, (Int, Commit)] {
+  override def map(value: Commit): (Int, Commit) = {
+    (this.getRuntimeContext.getIndexOfThisSubtask, value)
   }
 }
