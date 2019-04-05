@@ -7,13 +7,16 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.experimental.CommitStatsStage
+import org.codefeedr.experimental.StatsObjects.Stats
 import org.codefeedr.pipeline.PipelineBuilder
+import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchOutput
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages._
 import org.codefeedr.plugins.ghtorrent.stages.{
   GHTCommitStage,
   GHTInputStage,
   SideOutput
 }
+import org.codefeedr.stages.TransformStage
 
 object Main {
 
@@ -47,6 +50,9 @@ object Main {
   val prRCStage = new GHTPullRequestReviewCommentEventStage(
     sideOutput = sideOutput)
   val watchStage = new GHTWatchEventStage(sideOutput = sideOutput)
+
+  val commitStatsStage = new CommitStatsStage
+  val removeDotsStage = new RemoveDotsStage
 
   def main(args: Array[String]): Unit = {
     new PipelineBuilder()
@@ -82,8 +88,25 @@ object Main {
           prRCStage
         )
       )
-      .edge(commitStage, new CommitStatsStage)
+      .edge(commitStage, commitStatsStage)
+      .edge(commitStatsStage, removeDotsStage)
+      .edge(removeDotsStage,
+            new ElasticSearchOutput[Stats]("commit_stats", "es_commit_stats"))
       .build()
       .start(args)
+  }
+}
+
+class RemoveDotsStage()
+    extends TransformStage[Stats, Stats](Some("stats_remove_dots")) {
+  override def transform(source: DataStream[Stats]): DataStream[Stats] = {
+    source.map { x =>
+      x.reducedCommit.filesEdited.foreach { y =>
+        x.reducedCommit.filesEdited(y._1.replace(".", "")) = y._2
+        x.reducedCommit.filesEdited -= y._1
+      }
+
+      x
+    }
   }
 }
