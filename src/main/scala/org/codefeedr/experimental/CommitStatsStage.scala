@@ -9,25 +9,19 @@ import java.util.Date
 import org.apache.flink.api.common.functions.{
   AggregateFunction,
   ReduceFunction,
-  RichAggregateFunction,
-  RichMapFunction
+  RichMapFunction,
+  RichReduceFunction
 }
+import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag}
-import org.apache.flink.streaming.api.windowing.time.Time
 import org.codefeedr.experimental.StatsObjects._
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 import org.codefeedr.stages.TransformStage
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.scala.function.{
-  ProcessAllWindowFunction,
-  ProcessWindowFunction
-}
-import org.apache.flink.streaming.api.scala.function.util.ScalaFoldFunction
-import org.apache.flink.streaming.api.windowing.triggers.{
-  CountTrigger,
-  EventTimeTrigger
-}
+import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
+import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.streaming.api.windowing.triggers.CountTrigger
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
 
@@ -49,7 +43,9 @@ class CommitStatsStage(stageName: String = "daily_commits_stats")
       .timeWindow(Time.days(1))
       .allowedLateness(Time.days(31))
       .trigger(CountTrigger.of(1000))
-      .aggregate(new MinimizeCommit, new ProcessCommitWindow())
+      .aggregate(new MinimizeCommit, new ProcessCommitWindow)
+      .keyBy(_.date)
+      .reduce(new ReduceStats)
 
     /**
     trans
@@ -61,8 +57,8 @@ class CommitStatsStage(stageName: String = "daily_commits_stats")
   }
 }
 class ProcessCommitWindow
-    extends ProcessWindowFunction[ReducedCommits, Stats, Int, TimeWindow] {
-  override def process(key: Int,
+    extends ProcessWindowFunction[ReducedCommits, Stats, Tuple, TimeWindow] {
+  override def process(key: Tuple,
                        context: Context,
                        elements: Iterable[ReducedCommits],
                        out: Collector[Stats]): Unit = {
@@ -82,9 +78,8 @@ class ProcessCommitWindow
 class MinimizeCommit
     extends AggregateFunction[(Int, Commit), ReducedCommits, ReducedCommits] {
 
-  override def createAccumulator(): ReducedCommits = {
+  override def createAccumulator(): ReducedCommits =
     ReducedCommits(0, 0, 0, 0, 0, 0, List())
-  }
 
   override def add(value: (Int, Commit),
                    accumulator: ReducedCommits): ReducedCommits = {
@@ -207,5 +202,45 @@ class MinimizeCommit
 class PartitionKeyMap() extends RichMapFunction[Commit, (Int, Commit)] {
   override def map(value: Commit): (Int, Commit) = {
     (this.getRuntimeContext.getIndexOfThisSubtask, value)
+  }
+}
+
+class ReduceStats extends ReduceFunction[Stats] {
+  override def reduce(value1: Stats, value2: Stats): Stats = {
+    if (value1.date != value2.date) {
+      throw new RuntimeException("Dates should be the same in order to reduce.")
+    }
+
+    val mergedCommits = merge(value1.reducedCommit, value2.reducedCommit)
+
+    Stats(value1.date, mergedCommits)
+  }
+
+  def merge(a: ReducedCommits, b: ReducedCommits): ReducedCommits = {
+    val newAdditions = a.totalAdditions + b.totalAdditions
+    val newDeletions = a.totalDeletions + b.totalDeletions
+    val newCommits = a.totalCommits + b.totalCommits
+    val newFilesAdded = a.filesAdded + b.filesAdded
+    val newFilesModified = a.filesModified + b.filesModified
+    val newFilesRemoved = a.filesRemoved + b.filesRemoved
+    val newMap = (a.filesEdited ++ b.filesEdited)
+      .groupBy(_.name)
+      .mapValues(_.foldLeft((0L, 0L, 0L)) {
+        case ((add, del, create),
+              Extension(name, additions, deletions, created)) =>
+          (add + additions, del + deletions, create + created)
+      })
+      .map {
+        case (key, (add, del, create)) => Extension(key, add, del, create)
+      }
+      .toList
+
+    ReducedCommits(newCommits,
+                   newAdditions,
+                   newDeletions,
+                   newFilesAdded,
+                   newFilesModified,
+                   newFilesRemoved,
+                   newMap)
   }
 }
