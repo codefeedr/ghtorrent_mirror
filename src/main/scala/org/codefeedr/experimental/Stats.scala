@@ -13,6 +13,11 @@ object StatsObjects {
                             filesAdded: Long,
                             filesModified: Long,
                             filesRemoved: Long,
-                            filesEdited: Map[String, Map[String, Long]])
+                            filesEdited: List[Extension])
+
+  case class Extension(name: String,
+                       additions: Long,
+                       deletions: Long,
+                       created: Long)
 
 }
