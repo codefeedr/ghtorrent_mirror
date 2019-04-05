@@ -19,7 +19,8 @@ val flinkDependencies = Seq(
 
 val codefeedrDependencies = Seq(
   "org.codefeedr" %% "codefeedr-core" %  codefeedrVersion,
-  "org.codefeedr" %% "codefeedr-plugin-ghtorrent" %  codefeedrVersion
+  "org.codefeedr" %% "codefeedr-plugin-ghtorrent" %  codefeedrVersion,
+  "org.codefeedr" %% "codefeedr-plugin-elasticsearch" %  codefeedrVersion
 )
 
 lazy val root = (project in file(".")).
