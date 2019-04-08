@@ -113,18 +113,20 @@ class MinimizeCommit
     var filesRemoved = removed
     var filesModified = modified
 
+    var newExtenionList = fileMap
+
     value.files.foreach { file =>
       var extension = "unknown"
 
       if (file.filename.isDefined) {
         val pattern = "\\.[0-9a-z]+$".r
         extension = pattern
-          .findFirstIn(file.filename.get.replace(".", ""))
+          .findFirstIn(file.filename.get)
           .getOrElse("unknown")
+          .replace(".", "")
       }
 
       // Get extension map.
-      var newExtenionList = fileMap
       val oldExtension = newExtenionList.find(_.name == extension)
 
       // If it is already defined then update the amount of additions and deletions.
@@ -164,7 +166,7 @@ class MinimizeCommit
       }
     }
 
-    (filesAdded, filesModified, filesRemoved, fileMap)
+    (filesAdded, filesModified, filesRemoved, newExtenionList)
   }
 
   override def getResult(accumulator: ReducedCommits): ReducedCommits =
