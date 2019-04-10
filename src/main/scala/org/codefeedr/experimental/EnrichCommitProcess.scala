@@ -47,9 +47,31 @@ class EnrichCommitProcess
       out: Collector[EnrichedCommit]): Unit = {
     val pushEventIt = pushEventState.get()
 
+    /**
+      * We find the PushEvent with the matching SHA.
+      */
     val pushEvent = pushEventIt.asScala.find { c =>
       c.payload.commits.exists(_.sha == value.sha)
     }
 
+    /**
+      * It might be possible that a commit is not embedded in a PushEvent.
+      * - PushEvent > 20 commits
+      * - Commit is directly pushed on GitHub
+      */
+    if (pushEvent.isEmpty) {}
   }
+
+  /** Verifies if a Commit is directly pushed/committed on the GH website.
+    *
+    * @param commit the commit to verify.
+    * @return if a commit is pushed from GH.
+    */
+  private def pushedFromGitHub(commit: Commit): Boolean =
+    commit.commit.verification.payload match {
+
+      /** If the payload contains GitHub as committer it is directly committed from GH */
+      case Some(reason) if reason.contains("committer GitHub") => true
+      case _                                                   => false
+    }
 }
