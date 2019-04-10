@@ -52,7 +52,6 @@ object Main {
   val watchStage = new GHTWatchEventStage(sideOutput = sideOutput)
 
   val commitStatsStage = new CommitStatsStage
-  val removeDotsStage = new RemoveDotsStage
 
   def main(args: Array[String]): Unit = {
     new PipelineBuilder()
@@ -89,24 +88,10 @@ object Main {
         )
       )
       .edge(commitStage, commitStatsStage)
-      .edge(commitStatsStage, removeDotsStage)
-      .edge(removeDotsStage,
-            new ElasticSearchOutput[Stats]("commit_stats", "es_commit_stats"))
+      .edge(
+        commitStatsStage,
+        new ElasticSearchOutput[Stats]("daily_commit_stats", "es_commit_stats"))
       .build()
       .start(args)
-  }
-}
-
-class RemoveDotsStage()
-    extends TransformStage[Stats, Stats](Some("stats_remove_dots")) {
-  override def transform(source: DataStream[Stats]): DataStream[Stats] = {
-    source.map { x =>
-      x.reducedCommit.filesEdited.foreach { y =>
-        x.reducedCommit.filesEdited(y._1.replace(".", "")) = y._2
-        x.reducedCommit.filesEdited -= y._1
-      }
-
-      x
-    }
   }
 }
