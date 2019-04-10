@@ -12,6 +12,7 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.util.Collector
 import org.codefeedr.experimental.GitHub.EnrichedCommit
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
+import collection.JavaConverters._
 
 class EnrichCommitProcess
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
@@ -43,5 +44,12 @@ class EnrichCommitProcess
   override def processElement2(
       value: Commit,
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
-      out: Collector[EnrichedCommit]): Unit = {}
+      out: Collector[EnrichedCommit]): Unit = {
+    val pushEventIt = pushEventState.get()
+
+    val pushEvent = pushEventIt.asScala.find { c =>
+      c.payload.commits.exists(_.sha == value.sha)
+    }
+
+  }
 }
