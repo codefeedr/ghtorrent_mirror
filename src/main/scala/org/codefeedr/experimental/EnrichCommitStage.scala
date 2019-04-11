@@ -43,7 +43,7 @@ class EnrichCommitStage(stageId: String = "cf_commit",
       .process(new EnrichCommitProcess(unclassifiedTag))
 
     /** Print side-output as error. */
-    secondSource
+    processed
       .getSideOutput(unclassifiedTag)
       .addSink(
         new FlinkKafkaProducer[UnclassifiedCommit](
