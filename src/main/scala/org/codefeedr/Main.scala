@@ -6,7 +6,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.codefeedr.buffer.KafkaBuffer
-import org.codefeedr.experimental.CommitStatsStage
+import org.codefeedr.experimental.{CommitStatsStage, EnrichCommitStage}
 import org.codefeedr.experimental.StatsObjects.Stats
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchOutput

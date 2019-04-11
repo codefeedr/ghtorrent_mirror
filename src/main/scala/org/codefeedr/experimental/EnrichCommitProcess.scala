@@ -7,6 +7,7 @@ import org.apache.flink.api.common.state.{
 }
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.metrics.{Counter}
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.util.Collector
@@ -27,6 +28,8 @@ case class UnclassifiedCommit(commit: Commit,
 class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
+  @transient private var unclassifiedCommits: Counter = _
+
   /** TimeToLive configuration of the (Keyed) PushEvent state */
   lazy val ttlConfig = StateTtlConfig
     .newBuilder(Time.hours(1)) // We want PushEvents to be in State for a maximum of 1 hours.
@@ -38,7 +41,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
   /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key). */
   private var pushEventState: ListState[PushEvent] = _
 
-  /** Opens the function by initializing the (PushEvent) list state.
+  /** Opens the function by initializing the (PushEvent) list state and setting up some metrics.
     *
     * @param parameters the configuration parameters.
     */
@@ -48,6 +51,10 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     listStateDescriptor.enableTimeToLive(ttlConfig)
 
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
+
+    unclassifiedCommits =
+      getRuntimeContext.getMetricGroup.counter("unclassifiedCommits")
+
   }
 
   /** Stores a PushEvent in state for 1 hour.
@@ -97,7 +104,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
       /** If we're dealing with a push from GH, we collect it without push_id. */
       if (pushedFromGitHub(value)) {
         out.collect(EnrichedCommit(None, value.commit.committer.date, value))
-
+        unclassifiedCommits.inc()
         return
       }
 
@@ -121,6 +128,8 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
 
       /** No corresponding PushEvent can be found, something is going wrong. */
       if (pushEvent.isEmpty) {
+        unclassifiedCommits.inc()
+
         ctx.output(
           sideOutput,
           UnclassifiedCommit(
