@@ -39,7 +39,7 @@ class EnrichCommitProcess
   override def processElement1(
       value: PushEvent,
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
-      out: Collector[EnrichedCommit]): Unit = {}
+      out: Collector[EnrichedCommit]): Unit = pushEventState.add(value)
 
   override def processElement2(
       value: Commit,
