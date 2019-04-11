@@ -34,6 +34,10 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
   /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key). */
   private var pushEventState: ListState[PushEvent] = _
 
+  /** Opens the function by initializing the (PushEvent) list state.
+    *
+    * @param parameters the configuration parameters.
+    */
   override def open(parameters: Configuration): Unit = {
     val listStateDescriptor =
       new ListStateDescriptor[PushEvent]("push_events", classOf[PushEvent])
@@ -42,16 +46,22 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
   }
 
+  /** Stores a PushEvent in state for 1 hour.
+    *
+    * @param value the PushEvent to put in state.
+    * @param ctx the processing context.
+    * @param out a collector.
+    */
   override def processElement1(
       value: PushEvent,
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
       out: Collector[EnrichedCommit]): Unit = pushEventState.add(value)
 
-  /** Processes a Commit based on the PushEvents in state.
+  /** Processes and enriches a Commit based on the PushEvents in state.
     *
-    * @param value
-    * @param ctx
-    * @param out
+    * @param value the commit to enrich.
+    * @param ctx the processing context.
+    * @param out a collector.
     */
   override def processElement2(
       value: Commit,
