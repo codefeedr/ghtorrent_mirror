@@ -1,5 +1,7 @@
 package org.codefeedr.experimental
 
+import java.util.Date
+
 import org.apache.flink.api.common.state.{
   ListState,
   ListStateDescriptor,
@@ -7,7 +9,7 @@ import org.apache.flink.api.common.state.{
 }
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.metrics.{Counter}
+import org.apache.flink.metrics.Counter
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.util.Collector
@@ -18,8 +20,13 @@ import collection.JavaConverters._
 
 /** Case class to side-ouput unclassified commits. */
 case class UnclassifiedCommit(commit: Commit,
-                              pushEvents: List[PushEvent],
+                              pushEvents: List[MinimizedPush],
                               reason: String)
+
+case class MinimizedPush(push_id: Long,
+                         shaList: List[String],
+                         commit_size: Int,
+                         created_at: Date)
 
 /** Low-level join which enriches Commit data with its PushEvent.
   *
@@ -39,7 +46,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     .build()
 
   /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key). */
-  private var pushEventState: ListState[PushEvent] = _
+  private var pushEventState: ListState[MinimizedPush] = _
 
   /** Opens the function by initializing the (PushEvent) list state and setting up some metrics.
     *
@@ -47,7 +54,8 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     */
   override def open(parameters: Configuration): Unit = {
     val listStateDescriptor =
-      new ListStateDescriptor[PushEvent]("push_events", classOf[PushEvent])
+      new ListStateDescriptor[MinimizedPush]("push_events",
+                                             classOf[MinimizedPush])
     listStateDescriptor.enableTimeToLive(ttlConfig)
 
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
@@ -59,14 +67,19 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
 
   /** Stores a PushEvent in state for 1 hour.
     *
-    * @param value the PushEvent to put in state.
+    * @param value the PushEvent to put in state as MinimizedPushEvent.
     * @param ctx the processing context.
     * @param out a collector.
     */
   override def processElement1(
       value: PushEvent,
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
-      out: Collector[EnrichedCommit]): Unit = pushEventState.add(value)
+      out: Collector[EnrichedCommit]): Unit =
+    pushEventState.add(
+      MinimizedPush(value.payload.push_id,
+                    value.payload.commits.map(_.sha),
+                    value.payload.size,
+                    value.created_at))
 
   /** Processes and enriches a Commit based on the PushEvents in state.
     *
@@ -82,16 +95,14 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
 
     /** We find the PushEvent with the matching SHA. */
     val pushEventOpt = pushEventIt.asScala.find { c =>
-      c.payload.commits.exists(_.sha == value.sha)
+      c.shaList.exists(_ == value.sha)
     }
 
     /** Get the corresponding PushEvent and collect the EnrichedCommit. */
     if (pushEventOpt.isDefined) {
       val pushEvent = pushEventOpt.get
       out.collect(
-        EnrichedCommit(Some(pushEvent.payload.push_id),
-                       pushEvent.created_at,
-                       value))
+        EnrichedCommit(Some(pushEvent.push_id), pushEvent.created_at, value))
     }
 
     /**
@@ -144,7 +155,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
 
       /** Enrich Commit with closest PushEvent. */
       out.collect(
-        EnrichedCommit(Some(pushEvent.get.payload.push_id),
+        EnrichedCommit(Some(pushEvent.get.push_id),
                        pushEvent.get.created_at,
                        value))
     }
@@ -162,6 +173,6 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     *
     * @return The PushEvents with more than 20 commits.
     */
-  def pushEventsMoreThanTwentyCommits(): List[PushEvent] =
-    pushEventState.get().asScala.filter(_.payload.commits.size > 20).toList
+  def pushEventsMoreThanTwentyCommits(): List[MinimizedPush] =
+    pushEventState.get().asScala.filter(_.commit_size > 20).toList
 }
