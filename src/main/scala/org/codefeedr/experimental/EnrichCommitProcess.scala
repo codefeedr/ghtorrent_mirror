@@ -67,7 +67,7 @@ class EnrichCommitProcess
     * @param commit the commit to verify.
     * @return if a commit is pushed from GH.
     */
-  private def pushedFromGitHub(commit: Commit): Boolean =
+  def pushedFromGitHub(commit: Commit): Boolean =
     commit.commit.verification.payload match {
 
       /** If the payload contains GitHub as committer it is directly committed from GH */

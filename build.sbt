@@ -23,10 +23,16 @@ val codefeedrDependencies = Seq(
   "org.codefeedr" %% "codefeedr-plugin-elasticsearch" %  codefeedrVersion
 )
 
+val testDependencies = Seq(
+  "org.scalactic" %% "scalactic" % "3.0.5",
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+)
+
 lazy val root = (project in file(".")).
   settings(
     libraryDependencies ++= flinkDependencies,
-    libraryDependencies ++= codefeedrDependencies
+    libraryDependencies ++= codefeedrDependencies,
+    libraryDependencies ++= testDependencies
   )
 
 assembly / mainClass := Some("org.codefeedr.Main")
