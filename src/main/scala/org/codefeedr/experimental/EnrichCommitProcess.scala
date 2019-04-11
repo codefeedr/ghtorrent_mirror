@@ -104,7 +104,6 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
       /** If we're dealing with a push from GH, we collect it without push_id. */
       if (pushedFromGitHub(value)) {
         out.collect(EnrichedCommit(None, value.commit.committer.date, value))
-        unclassifiedCommits.inc()
         return
       }
 
@@ -112,6 +111,8 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
 
       /** If there are not PushEvents with more than 20 commits, then something is going wrong. */
       if (pushEvents.size == 0) {
+        unclassifiedCommits.inc()
+
         ctx.output(
           sideOutput,
           UnclassifiedCommit(value,
