@@ -3,8 +3,7 @@ package org.codefeedr.experimental
 import org.apache.flink.api.common.state.{
   ListState,
   ListStateDescriptor,
-  StateTtlConfig,
-  ValueStateDescriptor
+  StateTtlConfig
 }
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.Configuration
@@ -16,10 +15,15 @@ import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
 
 import collection.JavaConverters._
 
+/** Case class to side-ouput unclassified commits. */
 case class UnclassifiedCommit(commit: Commit,
                               pushEvents: List[PushEvent],
                               reason: String)
 
+/** Low-level join which enriches Commit data with its PushEvent.
+  *
+  * @param sideOutput the output tag to send unclassified commits to.
+  */
 class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
@@ -119,9 +123,11 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
       if (pushEvent.isEmpty) {
         ctx.output(
           sideOutput,
-          UnclassifiedCommit(value,
-                             pushEventState.get().asScala.toList,
-                             "No PushEvents with more than 20 commits."))
+          UnclassifiedCommit(
+            value,
+            pushEventState.get().asScala.toList,
+            "PushEvent(s) with more than 20 commits don't have a created_at after the commit date.")
+        )
 
         return
       }
