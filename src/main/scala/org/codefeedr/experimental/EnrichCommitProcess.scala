@@ -156,12 +156,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     * @return if a commit is pushed from GH.
     */
   def pushedFromGitHub(commit: Commit): Boolean =
-    commit.commit.verification.payload match {
-
-      /** If the payload contains GitHub as committer it is directly committed from GH */
-      case Some(reason) if reason.contains("committer GitHub") => true
-      case _                                                   => false
-    }
+    commit.commit.committer.name == "GitHub" && commit.commit.committer.name == "noreply@github.com"
 
   /** Returns all the PushEvents in state with more than 20 commits.
     *
