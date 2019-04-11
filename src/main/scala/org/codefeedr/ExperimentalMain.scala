@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
+import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.experimental.EnrichCommitStage
 import org.codefeedr.pipeline.PipelineBuilder
@@ -28,6 +29,8 @@ object ExperimentalMain {
       .setRestartStrategy(RestartStrategies.fixedDelayRestart(
         3,
         Time.of(10, TimeUnit.SECONDS))) // try restarting 3 times
+      .setStateBackend(
+        new FsStateBackend("file:///home/wzorgdrager/data/flink/checkpoints"))
       .enableCheckpointing(1000) // checkpointing every 1000ms
       .setBufferProperty(KafkaBuffer.AMOUNT_OF_PARTITIONS, "4")
       .setBufferProperty(KafkaBuffer.COMPRESSION_TYPE, "gzip")
