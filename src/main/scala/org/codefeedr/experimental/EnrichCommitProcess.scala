@@ -156,7 +156,7 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     * @return if a commit is pushed from GH.
     */
   def pushedFromGitHub(commit: Commit): Boolean =
-    commit.commit.committer.name == "GitHub" && commit.commit.committer.name == "noreply@github.com"
+    commit.commit.committer.name == "GitHub" && commit.commit.committer.email == "noreply@github.com"
 
   /** Returns all the PushEvents in state with more than 20 commits.
     *

@@ -26,12 +26,18 @@ object TestProtocol {
       "",
       "",
       "",
-      CommitData(commitUser, commitUser, "", Tree(""), 0, verificationObject),
+      CommitData(commitUser,
+                 CommitUser("GitHub", "noreply@github.com", new Date()),
+                 "",
+                 Tree(""),
+                 0,
+                 verificationObject),
       None,
       None,
       List(),
       None,
-      List())
+      List()
+    )
 
   val unverifiedCommit =
     Commit(
