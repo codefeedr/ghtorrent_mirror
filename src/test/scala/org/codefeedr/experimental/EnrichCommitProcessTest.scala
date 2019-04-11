@@ -7,9 +7,6 @@ class EnrichCommitProcessTest extends FunSuite {
 
   test("GitHub commit should be correctly verified.") {
     val enrichCommitProcess = new EnrichCommitProcess(null)
-
-    println(verifiedCommit.commit.committer.name)
-    println(verifiedCommit.commit.committer.email)
     assert(enrichCommitProcess.pushedFromGitHub(verifiedCommit))
   }
 
