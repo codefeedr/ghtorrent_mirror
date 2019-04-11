@@ -66,7 +66,15 @@ class EnrichCommitProcess
       * - PushEvent > 20 commits
       * - Commit is directly pushed on GitHub
       */
-    if (pushEventOpt.isEmpty) {}
+    if (pushEventOpt.isEmpty) {
+
+      /** If we're dealing with a push from GH, we collect it without push_id. */
+      if (pushedFromGitHub(value)) {
+        out.collect(EnrichedCommit(None, value.commit.committer.date, value))
+
+        return
+      }
+    }
   }
 
   /** Verifies if a Commit is directly pushed/committed on the GH website.
@@ -81,4 +89,11 @@ class EnrichCommitProcess
       case Some(reason) if reason.contains("committer GitHub") => true
       case _                                                   => false
     }
+
+  /** Returns all the PushEvents in state with more than 20 commits.
+    *
+    * @return The PushEvents with more than 20 commits.
+    */
+  def pushEventsMoreThanTwentyCommits(): List[PushEvent] =
+    pushEventState.get().asScala.filter(_.payload.commits.size > 20).toList
 }
