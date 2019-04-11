@@ -47,6 +47,12 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
       out: Collector[EnrichedCommit]): Unit = pushEventState.add(value)
 
+  /** Processes a Commit based on the PushEvents in state.
+    *
+    * @param value
+    * @param ctx
+    * @param out
+    */
   override def processElement2(
       value: Commit,
       ctx: CoProcessFunction[PushEvent, Commit, EnrichedCommit]#Context,
