@@ -20,6 +20,8 @@ class EnrichCommitStage(stageId: String = "cf_commit",
   val props = new Properties()
   props.put("bootstrap.servers", sideOutput.sideOutputKafkaServer)
   props.put("batch.size", "0")
+  props.put("message.max.bytes", "5000000") // max message size is 5mb
+  props.put("max.request.size", "5000000") // max message size is 5 mb
 
   val unclassifiedTag = OutputTag[UnclassifiedCommit]("unclassified-data")
 
