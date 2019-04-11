@@ -47,11 +47,18 @@ class EnrichCommitProcess
       out: Collector[EnrichedCommit]): Unit = {
     val pushEventIt = pushEventState.get()
 
-    /**
-      * We find the PushEvent with the matching SHA.
-      */
-    val pushEvent = pushEventIt.asScala.find { c =>
+    /** We find the PushEvent with the matching SHA. */
+    val pushEventOpt = pushEventIt.asScala.find { c =>
       c.payload.commits.exists(_.sha == value.sha)
+    }
+
+    /** Get the corresponding PushEvent and collect the EnrichedCommit. */
+    if (pushEventOpt.isDefined) {
+      val pushEvent = pushEventOpt.get
+      out.collect(
+        EnrichedCommit(Some(pushEvent.payload.push_id),
+                       pushEvent.created_at,
+                       value))
     }
 
     /**
@@ -59,7 +66,7 @@ class EnrichCommitProcess
       * - PushEvent > 20 commits
       * - Commit is directly pushed on GitHub
       */
-    if (pushEvent.isEmpty) {}
+    if (pushEventOpt.isEmpty) {}
   }
 
   /** Verifies if a Commit is directly pushed/committed on the GH website.
