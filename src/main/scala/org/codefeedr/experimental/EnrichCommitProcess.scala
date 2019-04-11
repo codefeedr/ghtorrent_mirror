@@ -9,12 +9,18 @@ import org.apache.flink.api.common.state.{
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
+import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.util.Collector
 import org.codefeedr.experimental.GitHub.EnrichedCommit
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
+
 import collection.JavaConverters._
 
-class EnrichCommitProcess
+case class UnclassifiedCommit(commit: Commit,
+                              pushEvents: List[PushEvent],
+                              reason: String)
+
+class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
   /** TimeToLive configuration of the (Keyed) PushEvent state */
@@ -25,7 +31,7 @@ class EnrichCommitProcess
       StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) // If for some reason it has been expired but not cleaned, then just return it.
     .build()
 
-  /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key).  */
+  /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key). */
   private var pushEventState: ListState[PushEvent] = _
 
   override def open(parameters: Configuration): Unit = {
@@ -74,6 +80,41 @@ class EnrichCommitProcess
 
         return
       }
+
+      val pushEvents = pushEventsMoreThanTwentyCommits()
+
+      /** If there are not PushEvents with more than 20 commits, then something is going wrong. */
+      if (pushEvents.size == 0) {
+        ctx.output(
+          sideOutput,
+          UnclassifiedCommit(value,
+                             pushEventState.get().asScala.toList,
+                             "No PushEvents with more than 20 commits."))
+
+        return
+      }
+
+      /** Find the PushEvent that was created after the Commit date and collect it. **/
+      val pushEvent =
+        pushEvents
+          .find(x => value.commit.committer.date.before(x.created_at))
+
+      /** No corresponding PushEvent can be found, something is going wrong. */
+      if (pushEvent.isEmpty) {
+        ctx.output(
+          sideOutput,
+          UnclassifiedCommit(value,
+                             pushEventState.get().asScala.toList,
+                             "No PushEvents with more than 20 commits."))
+
+        return
+      }
+
+      /** Enrich Commit with closest PushEvent. */
+      out.collect(
+        EnrichedCommit(Some(pushEvent.get.payload.push_id),
+                       pushEvent.get.created_at,
+                       value))
     }
   }
 
