@@ -7,10 +7,6 @@ import org.codefeedr.experimental.GitHub.EnrichedCommit
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
 import org.codefeedr.stages.TransformStage2
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer
-import org.codefeedr.buffer.serialization.Serializer
-import org.codefeedr.plugins.ghtorrent.protocol.GHTorrent.Record
-import org.codefeedr.plugins.ghtorrent.stages.SideOutput
 
 class EnrichCommitStage(stageId: String = "cf_commit")
     extends TransformStage2[Commit, PushEvent, EnrichedCommit](Some(stageId)) {
