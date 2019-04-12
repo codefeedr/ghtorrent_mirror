@@ -56,13 +56,13 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
     val listStateDescriptor =
       new ListStateDescriptor[MinimizedPush]("push_events",
                                              classOf[MinimizedPush])
+
     listStateDescriptor.enableTimeToLive(ttlConfig)
 
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
 
     unclassifiedCommits =
       getRuntimeContext.getMetricGroup.counter("unclassifiedCommits")
-
   }
 
   /** Stores a PushEvent in state for 1 hour.
@@ -80,6 +80,64 @@ class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
                     value.payload.commits.map(_.sha),
                     value.payload.size,
                     value.created_at))
+
+  def findAndCollectCommit(value: Commit,
+                           out: Collector[EnrichedCommit]): Boolean = {
+    val pushEventIt = pushEventState.get()
+
+    /** We find the PushEvent with the matching SHA. */
+    val pushEventOpt = pushEventIt.asScala.find { c =>
+      c.shaList.exists(_ == value.sha)
+    }
+
+    /** Get the corresponding PushEvent and collect the EnrichedCommit. */
+    if (pushEventOpt.isDefined) {
+      val pushEvent = pushEventOpt.get
+      out.collect(
+        EnrichedCommit(Some(pushEvent.push_id), pushEvent.created_at, value))
+      return true
+    }
+
+    /**
+      * It might be possible that a commit is not embedded in a PushEvent.
+      * - PushEvent > 20 commits
+      * - Commit is directly pushed on GitHub
+      */
+    if (pushEventOpt.isEmpty) {
+
+      /** If we're dealing with a push from GH, we collect it without push_id. */
+      if (pushedFromGitHub(value)) {
+        out.collect(EnrichedCommit(None, value.commit.committer.date, value))
+        return true
+      }
+
+      val pushEvents = pushEventsMoreThanTwentyCommits()
+
+      /** If there are not PushEvents with more than 20 commits, then something is going wrong. */
+      if (pushEvents.size == 0) {
+        return false
+      }
+
+      /** Find the PushEvent that was created after the Commit date and collect it. **/
+      val pushEvent =
+        pushEvents
+          .find(x => value.commit.committer.date.before(x.created_at))
+
+      /** No corresponding PushEvent can be found, something is going wrong. */
+      if (pushEvent.isEmpty) {
+        return false
+      }
+
+      /** Enrich Commit with closest PushEvent. */
+      out.collect(
+        EnrichedCommit(Some(pushEvent.get.push_id),
+                       pushEvent.get.created_at,
+                       value))
+      return true
+    }
+
+    false
+  }
 
   /** Processes and enriches a Commit based on the PushEvents in state.
     *
