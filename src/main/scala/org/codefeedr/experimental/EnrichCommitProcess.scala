@@ -18,11 +18,7 @@ import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
 
 import collection.JavaConverters._
 
-/** Case class to side-ouput unclassified commits. */
-case class UnclassifiedCommit(commit: Commit,
-                              pushEvents: List[MinimizedPush],
-                              reason: String)
-
+/** Minimized version of Push Event */
 case class MinimizedPush(push_id: Long,
                          shaList: List[String],
                          commit_size: Int,
@@ -32,7 +28,7 @@ case class MinimizedPush(push_id: Long,
   *
   * @param sideOutput the output tag to send unclassified commits to.
   */
-class EnrichCommitProcess(sideOutput: OutputTag[UnclassifiedCommit])
+class EnrichCommitProcess()
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
   @transient private var unclassifiedCommits: Counter = _
