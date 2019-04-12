@@ -40,10 +40,7 @@ object ExperimentalMain {
       .setBufferProperty("max.request.size", "5000000") // max message size is 5 mb
       .setBufferProperty("auto.offset.reset", "latest")
       .edge(inputStage, List(commitStage, pushStage))
-      .edge(List(pushStage, commitStage),
-            new EnrichCommitStage(
-              sideOutput =
-                SideOutput(true, "unclassified_commits", "localhost:29092")))
+      .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .build()
       .start(args)
   }
