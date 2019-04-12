@@ -11,7 +11,6 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.Counter
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction
-import org.apache.flink.streaming.api.scala.OutputTag
 import org.apache.flink.util.Collector
 import org.codefeedr.experimental.GitHub.{EnrichedCommit, Pushed}
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
@@ -24,7 +23,7 @@ case class MinimizedPush(push_id: Long,
                          commit_size: Int,
                          created_at: Date)
 
-/** Low-level join which enriches Commit data with its PushEvent.
+/** Low-level join which enriches Commit data with its PushEvent (if it can be found).
   *
   * @param sideOutput the output tag to send unclassified commits to.
   */
@@ -100,12 +99,14 @@ class EnrichCommitProcess()
       val pushed = Pushed(pushEvent.push_id, pushEvent.created_at)
 
       out.collect(EnrichedCommit(Some(pushed), value))
+      return
     }
 
     /**
       * It might be possible that a commit is not embedded in a PushEvent.
       * - PushEvent > 20 commits
       * - Commit is directly pushed on GitHub
+      * - No PushEvent is associated.
       */
     if (pushEventOpt.isEmpty) {
 
@@ -119,7 +120,7 @@ class EnrichCommitProcess()
 
       val pushEvents = pushEventsMoreThanTwentyCommits()
 
-      /** If there are not PushEvents with more than 20 commits, then something is going wrong. */
+      /** If there are not PushEvents with more than 20 commits, then we can't trace it back to a PushEvent. */
       if (pushEvents.size == 0) {
         unclassifiedCommits.inc()
 
@@ -132,7 +133,7 @@ class EnrichCommitProcess()
         pushEvents
           .find(x => value.commit.committer.date.before(x.created_at))
 
-      /** No corresponding PushEvent can be found, something is going wrong. */
+      /** No corresponding PushEvent can be found, then we can't trace it back to a PushEvent. */
       if (pushEvent.isEmpty) {
         unclassifiedCommits.inc()
 
@@ -143,6 +144,7 @@ class EnrichCommitProcess()
       /** Enrich Commit with closest PushEvent. */
       val pushed = Pushed(pushEvent.get.push_id, pushEvent.get.created_at)
       out.collect(EnrichedCommit(Some(pushed), value))
+      return
     }
   }
 
