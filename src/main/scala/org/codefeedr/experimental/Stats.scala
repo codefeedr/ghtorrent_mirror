@@ -5,15 +5,15 @@ import scala.collection.mutable.Map
 
 object StatsObjects {
 
-  case class Stats(date: String, reducedCommit: ReducedCommits)
+  case class Stats(date: String, commitStats: CommitStats)
 
-  case class ReducedCommits(totalCommits: Long,
-                            totalAdditions: Long,
-                            totalDeletions: Long,
-                            filesAdded: Long,
-                            filesModified: Long,
-                            filesRemoved: Long,
-                            filesEdited: List[Extension])
+  case class CommitStats(totalCommits: Long,
+                         totalAdditions: Long,
+                         totalDeletions: Long,
+                         filesAdded: Long,
+                         filesModified: Long,
+                         filesRemoved: Long,
+                         filesEdited: List[Extension])
 
   case class Extension(name: String,
                        additions: Long,
