@@ -32,7 +32,9 @@ case class MinimizedPush(push_id: Long,
 class EnrichCommitProcess()
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
+  /** Accumulators to keep track of (un)classified commits. */
   val unclassifiedCommits = new LongCounter()
+  val classifiedCommits = new LongCounter()
 
   /** TimeToLive configuration of the (Keyed) PushEvent state */
   lazy val ttlConfig = StateTtlConfig
@@ -60,6 +62,7 @@ class EnrichCommitProcess()
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
     getRuntimeContext.addAccumulator("commits_without_push",
                                      unclassifiedCommits)
+    getRuntimeContext.addAccumulator("commits_with_push", classifiedCommits)
   }
 
   /** Stores a PushEvent in state for 1 hour.
@@ -100,6 +103,7 @@ class EnrichCommitProcess()
       val pushEvent = pushEventOpt.get
       val pushed = Pushed(pushEvent.push_id, pushEvent.created_at)
 
+      classifiedCommits.add(1)
       out.collect(EnrichedCommit(Some(pushed), value))
       return
     }
@@ -116,6 +120,7 @@ class EnrichCommitProcess()
       if (pushedFromGitHub(value)) {
         val pushed = Pushed(-1, value.commit.committer.date, true)
 
+        classifiedCommits.add(1)
         out.collect(EnrichedCommit(Some(pushed), value))
         return
       }
@@ -145,6 +150,7 @@ class EnrichCommitProcess()
 
       /** Enrich Commit with closest PushEvent. */
       val pushed = Pushed(pushEvent.get.push_id, pushEvent.get.created_at)
+      classifiedCommits.add(1)
       out.collect(EnrichedCommit(Some(pushed), value))
       return
     }
