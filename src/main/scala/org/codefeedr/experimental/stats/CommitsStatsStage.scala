@@ -14,7 +14,8 @@ import org.apache.flink.streaming.api.windowing.triggers.{
 }
 import org.codefeedr.experimental.stats.StatsObjects.Stats
 
-class CommitsStatsStage extends OutputStage[Commit] {
+class CommitsStatsStage(name: String = "commit_stats")
+    extends OutputStage[Commit](Some(name)) {
 
   private val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH")
 
@@ -30,6 +31,7 @@ class CommitsStatsStage extends OutputStage[Commit] {
       .timeWindow(Time.minutes(10))
       .trigger(new PurgingTrigger[(Long, Stats)](new ProcessingTimeTrigger))
       .process(new EmitHighestTimestamp)
+      .print()
 
   }
 }

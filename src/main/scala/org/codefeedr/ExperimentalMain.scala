@@ -7,6 +7,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.experimental.enricher.EnrichCommitStage
+import org.codefeedr.experimental.stats.CommitsStatsStage
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages.GHTPushEventStage
 import org.codefeedr.plugins.ghtorrent.stages.{
@@ -42,6 +43,7 @@ object ExperimentalMain {
       .setBufferProperty("auto.offset.reset", "latest")
       .edge(inputStage, List(commitStage, pushStage))
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
+      .edge(commitStage, new CommitsStatsStage())
       .build()
       .start(args)
   }

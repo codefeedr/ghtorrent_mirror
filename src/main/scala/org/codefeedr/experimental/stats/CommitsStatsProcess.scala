@@ -2,9 +2,10 @@ package org.codefeedr.experimental.stats
 
 import java.text.SimpleDateFormat
 
+import org.apache.flink.api.common.accumulators.LongCounter
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.{KeyedProcessFunction}
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.util.Collector
 import org.codefeedr.experimental.stats.StatsObjects.{
   CommitStats,
@@ -17,11 +18,14 @@ class CommitsStatsProcess
     extends KeyedProcessFunction[String, Commit, (Long, Stats)] {
   private var statsState: ValueState[Stats] = _
 
+  private val sumCommits = new LongCounter()
+
   override def open(parameters: Configuration): Unit = {
     val statsStateDescriptor =
       new ValueStateDescriptor[Stats]("stats", classOf[Stats])
     statsState = getRuntimeContext.getState[Stats](statsStateDescriptor)
 
+    getRuntimeContext.addAccumulator("total_commits_processed", sumCommits)
   }
 
   override def processElement(
@@ -42,6 +46,7 @@ class CommitsStatsProcess
       out.collect(ctx.timestamp(), newStats)
     }
 
+    sumCommits.add(1)
   }
 
   def createStats(key: String, commit: Commit): Stats = {
