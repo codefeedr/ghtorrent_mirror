@@ -2,6 +2,7 @@ package org.codefeedr.experimental
 
 import java.util.Date
 
+import org.apache.flink.api.common.accumulators.{Accumulator, LongCounter}
 import org.apache.flink.api.common.state.{
   ListState,
   ListStateDescriptor,
@@ -16,6 +17,7 @@ import org.codefeedr.experimental.GitHub.{EnrichedCommit, Pushed}
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
 
 import collection.JavaConverters._
+import scala.compat.java8.collectionImpl.LongAccumulator
 
 /** Minimized version of Push Event */
 case class MinimizedPush(push_id: Long,
@@ -30,7 +32,7 @@ case class MinimizedPush(push_id: Long,
 class EnrichCommitProcess()
     extends CoProcessFunction[PushEvent, Commit, EnrichedCommit] {
 
-  @transient private var unclassifiedCommits: Counter = _
+  val unclassifiedCommits = new LongCounter()
 
   /** TimeToLive configuration of the (Keyed) PushEvent state */
   lazy val ttlConfig = StateTtlConfig
@@ -56,9 +58,8 @@ class EnrichCommitProcess()
     listStateDescriptor.enableTimeToLive(ttlConfig)
 
     pushEventState = getRuntimeContext.getListState(listStateDescriptor)
-
-    unclassifiedCommits =
-      getRuntimeContext.getMetricGroup.counter("unclassifiedCommits")
+    getRuntimeContext.addAccumulator("commits_without_push",
+                                     unclassifiedCommits)
   }
 
   /** Stores a PushEvent in state for 1 hour.
@@ -123,7 +124,7 @@ class EnrichCommitProcess()
 
       /** If there are not PushEvents with more than 20 commits, then we can't trace it back to a PushEvent. */
       if (pushEvents.size == 0) {
-        unclassifiedCommits.inc()
+        unclassifiedCommits.add(1)
 
         out.collect(EnrichedCommit(None, value))
         return
@@ -136,7 +137,7 @@ class EnrichCommitProcess()
 
       /** No corresponding PushEvent can be found, then we can't trace it back to a PushEvent. */
       if (pushEvent.isEmpty) {
-        unclassifiedCommits.inc()
+        unclassifiedCommits.add(1)
 
         out.collect(EnrichedCommit(None, value))
         return
