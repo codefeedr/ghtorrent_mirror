@@ -7,17 +7,13 @@ object StatsObjects {
 
   case class Stats(date: String, commitStats: CommitStats)
 
-  case class CommitStats(totalCommits: Long,
-                         totalAdditions: Long,
-                         totalDeletions: Long,
-                         filesAdded: Long,
-                         filesModified: Long,
-                         filesRemoved: Long,
-                         filesEdited: List[Extension])
+  case class CommitStats(totalCommits: Long, filesEdited: List[Extension])
 
   case class Extension(name: String,
                        additions: Long,
                        deletions: Long,
-                       created: Long)
+                       added: Long,
+                       removed: Long,
+                       modified: Long)
 
 }
