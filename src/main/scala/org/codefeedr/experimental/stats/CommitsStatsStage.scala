@@ -29,7 +29,7 @@ class CommitsStatsStage(name: String = "commit_stats")
       .process(new CommitsStatsProcess)
       .keyBy(_._2.date)
       .timeWindow(Time.minutes(10))
-      .trigger(new PurgingTrigger[(Long, Stats)](new ProcessingTimeTrigger))
+      .trigger(PurgingTrigger.of(new ProcessingTimeTrigger()))
       .process(new EmitHighestTimestamp)
       .print()
 
