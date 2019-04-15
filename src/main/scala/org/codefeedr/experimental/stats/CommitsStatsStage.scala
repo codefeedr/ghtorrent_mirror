@@ -27,7 +27,7 @@ class CommitsStatsStage(name: String = "commit_stats")
       .keyBy(new KeyOnDate)
       .process(new CommitsStatsProcess)
       .keyBy(_._2.date)
-      .timeWindow(Time.seconds(10))
+      .timeWindow(Time.minutes(10))
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create()))
       .aggregate(new EmitHighestTimestamp)
       .addSink(
