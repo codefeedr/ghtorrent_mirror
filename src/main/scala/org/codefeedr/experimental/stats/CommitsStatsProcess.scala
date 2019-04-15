@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.{KeyedProcessFunction}
 import org.apache.flink.util.Collector
 import org.codefeedr.experimental.stats.StatsObjects.{
   CommitStats,
@@ -13,9 +13,8 @@ import org.codefeedr.experimental.stats.StatsObjects.{
 }
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 
-class CommitsStatsProcess extends ProcessFunction[Commit, (Long, Stats)] {
-
-  private val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH")
+class CommitsStatsProcess
+    extends KeyedProcessFunction[String, Commit, (Long, Stats)] {
   private var statsState: ValueState[Stats] = _
 
   override def open(parameters: Configuration): Unit = {
@@ -27,26 +26,26 @@ class CommitsStatsProcess extends ProcessFunction[Commit, (Long, Stats)] {
 
   override def processElement(
       value: Commit,
-      ctx: ProcessFunction[Commit, (Long, Stats)]#Context,
+      ctx: KeyedProcessFunction[String, Commit, (Long, Stats)]#Context,
       out: Collector[(Long, Stats)]): Unit = {
     val currentStats = statsState.value()
 
     if (currentStats == null) {
       //Let's collect.
-      out.collect(ctx.timestamp(), createStats(value))
+      out.collect(ctx.timestamp(), createStats(ctx.getCurrentKey, value))
     } else {
       // Update stats and state.
-      val newStats = merge(createStats(value), currentStats)
+      val newStats = merge(createStats(ctx.getCurrentKey, value), currentStats)
       statsState.update(newStats)
 
       // Let's collect.
-      out.collect(ctx.timestamp(), createStats(value))
+      out.collect(ctx.timestamp(), newStats)
     }
 
   }
 
-  def createStats(commit: Commit): Stats = {
-    val date = dateFormat.format(commit.commit.committer.date)
+  def createStats(key: String, commit: Commit): Stats = {
+    val date = key
 
     val extensions = commit.files
       .map { file =>
