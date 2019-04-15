@@ -6,10 +6,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.scala._
 import org.codefeedr.buffer.KafkaBuffer
-import org.codefeedr.experimental.{CommitStatsStage, EnrichCommitStage}
-import org.codefeedr.experimental.StatsObjects.Stats
 import org.codefeedr.pipeline.PipelineBuilder
-import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchOutput
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages._
 import org.codefeedr.plugins.ghtorrent.stages.{
   GHTCommitStage,
@@ -51,8 +48,6 @@ object Main {
     sideOutput = sideOutput)
   val watchStage = new GHTWatchEventStage(sideOutput = sideOutput)
 
-  val commitStatsStage = new CommitStatsStage
-
   def main(args: Array[String]): Unit = {
     new PipelineBuilder()
       .setPipelineName("GHT Mirror")
@@ -90,10 +85,6 @@ object Main {
           prRCStage
         )
       )
-      .edge(commitStage, commitStatsStage)
-      .edge(
-        commitStatsStage,
-        new ElasticSearchOutput[Stats]("daily_commit_stats", "es_commit_stats"))
       .build()
       .start(args)
   }
