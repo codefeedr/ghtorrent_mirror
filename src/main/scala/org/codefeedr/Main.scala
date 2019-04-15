@@ -64,6 +64,8 @@ object Main {
       .setBufferProperty(KafkaBuffer.COMPRESSION_TYPE, "gzip")
       .setBufferProperty(KafkaBuffer.BROKER, "localhost:29092")
       .setBufferProperty(KafkaBuffer.ZOOKEEPER, "localhost:2181")
+      .setBufferProperty("max.request.size", "5000000") // max message size is 5 mb
+      .setBufferProperty("message.max.bytes", "5000000") // max message size is 5mb
       .edge(
         inputStage,
         List(

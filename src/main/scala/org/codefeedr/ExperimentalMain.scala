@@ -26,6 +26,7 @@ object ExperimentalMain {
 
   def main(args: Array[String]): Unit = {
     new PipelineBuilder()
+      .setPipelineName("CF Experimental")
       .setRestartStrategy(RestartStrategies.fixedDelayRestart(
         3,
         Time.of(10, TimeUnit.SECONDS))) // try restarting 3 times

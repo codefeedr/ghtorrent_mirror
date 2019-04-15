@@ -38,6 +38,7 @@ class EnrichCommitProcess()
     .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite) // We want this timer to start at the moment a PushEvent is inserted in State.
     .setStateVisibility(
       StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) // If for some reason it has been expired but not cleaned, then just return it.
+    .cleanupFullSnapshot()
     .build()
 
   /** We need a ListState since there might be multiple PushEvents from the same repository (on which we key). */
