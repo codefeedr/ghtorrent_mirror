@@ -2,6 +2,7 @@ package org.codefeedr.experimental
 
 import org.scalatest.FunSuite
 import org.codefeedr.experimental.TestProtocol._
+import org.codefeedr.experimental.enricher.EnrichCommitProcess
 
 class EnrichCommitProcessTest extends FunSuite {
 

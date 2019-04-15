@@ -93,6 +93,8 @@ class CommitsStatsProcess extends ProcessFunction[Commit, (Long, Stats)] {
                 remA + remB,
                 modA + modB)
     case _ =>
+      throw new RuntimeException(
+        "Cannot merge two extensions because they have different names.")
   }
 
   def merge(statsA: Stats, statsB: Stats): Stats = {
