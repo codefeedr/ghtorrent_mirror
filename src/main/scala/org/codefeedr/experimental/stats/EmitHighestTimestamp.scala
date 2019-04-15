@@ -1,22 +1,20 @@
 package org.codefeedr.experimental.stats
 
-import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction
-import org.apache.flink.streaming.api.scala.function.ProcessWindowFunction
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow
-import org.apache.flink.util.Collector
-import org.codefeedr.experimental.stats.StatsObjects.Stats
+import org.apache.flink.api.common.functions.AggregateFunction
+
+import org.codefeedr.experimental.stats.StatsObjects.{CommitStats, Stats}
 
 class EmitHighestTimestamp
-    extends ProcessWindowFunction[(Long, Stats), Stats, String, TimeWindow] {
+    extends AggregateFunction[(Long, Stats), (Long, Stats), Stats] {
+  override def createAccumulator(): (Long, Stats) =
+    (0, Stats("", CommitStats(0L, List())))
 
-  override def process(key: String,
-                       context: Context,
-                       elements: Iterable[(Long, Stats)],
-                       out: Collector[Stats]): Unit = {
-    val toEmit =
-      elements.toList.reduceLeft((a, b) => if (a._1 > b._1) a else b)._2
+  override def add(value: (Long, Stats),
+                   accumulator: (Long, Stats)): (Long, Stats) =
+    if (value._1 > accumulator._1) value else accumulator
 
-    out.collect(toEmit)
-  }
+  override def getResult(accumulator: (Long, Stats)): Stats = accumulator._2
+
+  override def merge(a: (Long, Stats), b: (Long, Stats)): (Long, Stats) =
+    if (a._1 > b._1) a else b
 }

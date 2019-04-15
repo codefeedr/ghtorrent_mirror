@@ -6,10 +6,26 @@ import org.apache.flink.streaming.api.functions.sink.{
   SinkFunction
 }
 import org.codefeedr.experimental.stats.StatsObjects.Stats
+import org.codefeedr.plugins.mongodb.BaseMongoSink
+import org.json4s.jackson.Serialization
+import org.mongodb.scala.bson.collection.mutable.Document
+import org.mongodb.scala.result
 
-class InsertAndReplaceMongoSink extends RichSinkFunction[Stats] {
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-  override def open(parameters: Configuration): Unit = {}
+class InsertAndReplaceMongoSink(val userConfigg: Map[String, String])
+    extends BaseMongoSink[Stats](userConfigg) {
 
-  override def invoke(value: Stats, context: SinkFunction.Context[_]): Unit = {}
+  override def invoke(value: Stats, context: SinkFunction.Context[_]): Unit = {
+    val collection = getCollection
+
+    val json = Serialization.write(value)(formats)
+    val doc = Document(json)
+    doc += "_.id" -> value.date
+
+    val result = collection.insertOne(doc)
+
+    Await.result(result.toFuture, Duration.Inf)
+  }
 }

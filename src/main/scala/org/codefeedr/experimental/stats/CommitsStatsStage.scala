@@ -29,8 +29,9 @@ class CommitsStatsStage(name: String = "commit_stats")
       .keyBy(_._2.date)
       .timeWindow(Time.minutes(10))
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create()))
-      .process(new EmitHighestTimestamp)
-      .print()
+      .aggregate(new EmitHighestTimestamp)
+      .addSink(new InsertAndReplaceMongoSink(
+        Map("database" -> "codefeedr", "collection" -> "commit_stats")))
 
   }
 }
