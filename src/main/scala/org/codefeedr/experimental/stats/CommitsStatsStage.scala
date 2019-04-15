@@ -27,14 +27,15 @@ class CommitsStatsStage(name: String = "commit_stats")
       .keyBy(new KeyOnDate)
       .process(new CommitsStatsProcess)
       .keyBy(_._2.date)
-      .timeWindow(Time.minutes(10))
+      .timeWindow(Time.seconds(10))
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create()))
       .aggregate(new EmitHighestTimestamp)
-      .addSink(
-        new InsertAndReplaceMongoSink(
-          Map("server" -> "mongodb://localhost:27017",
-              "database" -> "codefeedr",
-              "collection" -> "commit_stats")))
+      .print()
+    //.addSink(
+    //  new InsertAndReplaceMongoSink(
+    //    Map("server" -> "mongodb://localhost:27017",
+    //       "database" -> "codefeedr",
+    //        "collection" -> "commit_stats")))
 
   }
 }

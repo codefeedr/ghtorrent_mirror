@@ -35,15 +35,19 @@ class CommitsStatsProcess
     val currentStats = statsState.value()
 
     if (currentStats == null) {
+      val stats = createStats(ctx.getCurrentKey, value)
+
       //Let's collect.
-      out.collect(ctx.timestamp(), createStats(ctx.getCurrentKey, value))
+      statsState.update(stats)
+      out.collect(ctx.timerService().currentProcessingTime(),
+                  createStats(ctx.getCurrentKey, value))
     } else {
       // Update stats and state.
       val newStats = merge(createStats(ctx.getCurrentKey, value), currentStats)
       statsState.update(newStats)
 
       // Let's collect.
-      out.collect(ctx.timestamp(), newStats)
+      out.collect(ctx.timerService().currentProcessingTime(), newStats)
     }
 
     sumCommits.add(1)
