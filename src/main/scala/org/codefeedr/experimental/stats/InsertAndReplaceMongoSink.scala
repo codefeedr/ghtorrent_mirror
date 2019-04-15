@@ -22,7 +22,7 @@ class InsertAndReplaceMongoSink(val userConfigg: Map[String, String])
 
     val json = Serialization.write(value)(formats)
     val doc = Document(json)
-    doc += "_.id" -> value.date
+    doc += "_id" -> value.date
 
     val result = collection.insertOne(doc)
 

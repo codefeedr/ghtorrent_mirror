@@ -40,7 +40,7 @@ object ExperimentalMain {
       .setBufferProperty(KafkaBuffer.ZOOKEEPER, "localhost:2181")
       .setBufferProperty("message.max.bytes", "5000000") // max message size is 5mb
       .setBufferProperty("max.request.size", "5000000") // max message size is 5 mb
-      .setBufferProperty("auto.offset.reset", "latest")
+      //.setBufferProperty("auto.offset.reset", "latest")
       .edge(inputStage, List(commitStage, pushStage))
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .edge(commitStage, new CommitsStatsStage())
