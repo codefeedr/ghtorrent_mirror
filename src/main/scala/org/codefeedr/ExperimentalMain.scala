@@ -45,6 +45,6 @@ object ExperimentalMain {
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .edge(commitStage, new CommitsStatsStage())
       .build()
-      .start(args)
+      .start(Array("--stage", "commit_stats"))
   }
 }
