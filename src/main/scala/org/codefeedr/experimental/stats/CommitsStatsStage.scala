@@ -30,12 +30,11 @@ class CommitsStatsStage(name: String = "commit_stats")
       .timeWindow(Time.seconds(10))
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create()))
       .aggregate(new EmitHighestTimestamp)
-      .print()
-    //.addSink(
-    //  new InsertAndReplaceMongoSink(
-    //    Map("server" -> "mongodb://localhost:27017",
-    //       "database" -> "codefeedr",
-    //        "collection" -> "commit_stats")))
+      .addSink(
+        new InsertAndReplaceMongoSink(
+          Map("server" -> "mongodb://localhost:27017",
+              "database" -> "codefeedr",
+              "collection" -> "commit_stats")))
 
   }
 }

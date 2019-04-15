@@ -5,6 +5,9 @@ The goal of this plugin is to mirror GHTorrent.
 
 ## Experimental
 
+### Hourly commit stats
+
+
 ### Commit enrichment
 The idea of this stage is to enrich Commit data with their corresponding PushEvent (if available). I.e. Add the `push_id` and `push_date` to a Commit.
 
