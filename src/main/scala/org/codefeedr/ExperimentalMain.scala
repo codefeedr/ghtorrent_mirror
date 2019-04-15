@@ -31,9 +31,9 @@ object ExperimentalMain {
       .setRestartStrategy(RestartStrategies.fixedDelayRestart(
         3,
         Time.of(10, TimeUnit.SECONDS))) // try restarting 3 times
-      // .setStateBackend(
-      //   new FsStateBackend("file:///home/wzorgdrager/data/flink/checkpoints"))
-      //  .enableCheckpointing(1000) // checkpointing every 1000ms
+      .setStateBackend(
+        new FsStateBackend("file:///home/wzorgdrager/data/flink/checkpoints"))
+      .enableCheckpointing(1000) // checkpointing every 1000ms
       .setBufferProperty(KafkaBuffer.AMOUNT_OF_PARTITIONS, "4")
       .setBufferProperty(KafkaBuffer.COMPRESSION_TYPE, "gzip")
       .setBufferProperty(KafkaBuffer.BROKER, "localhost:29092")
@@ -45,6 +45,6 @@ object ExperimentalMain {
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .edge(commitStage, new CommitsStatsStage())
       .build()
-      .start(Array("--stage", "commit_stats"))
+      .start(args)
   }
 }
