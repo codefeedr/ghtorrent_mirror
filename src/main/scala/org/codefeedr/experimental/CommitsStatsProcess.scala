@@ -33,8 +33,16 @@ class CommitsStatsProcess extends ProcessFunction[Commit, (Long, Stats)] {
     val currentStats = statsState.value()
 
     if (currentStats == null) {
+      //Let's collect.
       out.collect(ctx.timestamp(), createStats(value))
-    } else {}
+    } else {
+      // Update stats and state.
+      val newStats = merge(createStats(value), currentStats)
+      statsState.update(newStats)
+
+      // Let's collect.
+      out.collect(ctx.timestamp(), createStats(value))
+    }
 
   }
 
