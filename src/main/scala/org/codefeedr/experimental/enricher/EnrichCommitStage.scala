@@ -1,12 +1,10 @@
-package org.codefeedr.experimental
+package org.codefeedr.experimental.enricher
 
-import java.util.Properties
-
-import org.apache.flink.streaming.api.scala.{DataStream, OutputTag}
+import org.apache.flink.api.scala._
+import org.apache.flink.streaming.api.scala.DataStream
 import org.codefeedr.experimental.GitHub.EnrichedCommit
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.{Commit, PushEvent}
 import org.codefeedr.stages.TransformStage2
-import org.apache.flink.api.scala._
 
 class EnrichCommitStage(stageId: String = "cf_commit")
     extends TransformStage2[Commit, PushEvent, EnrichedCommit](Some(stageId)) {

@@ -1,7 +1,4 @@
-package org.codefeedr.experimental
-import java.util.Date
-
-import scala.collection.mutable.Map
+package org.codefeedr.experimental.stats
 
 object StatsObjects {
 

@@ -6,7 +6,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.codefeedr.buffer.KafkaBuffer
-import org.codefeedr.experimental.EnrichCommitStage
+import org.codefeedr.experimental.enricher.EnrichCommitStage
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages.GHTPushEventStage
 import org.codefeedr.plugins.ghtorrent.stages.{

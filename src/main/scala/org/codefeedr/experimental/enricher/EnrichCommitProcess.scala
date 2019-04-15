@@ -1,4 +1,4 @@
-package org.codefeedr.experimental
+package org.codefeedr.experimental.enricher
 
 import java.util.Date
 

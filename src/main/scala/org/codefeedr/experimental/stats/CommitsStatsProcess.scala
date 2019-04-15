@@ -1,17 +1,16 @@
-package org.codefeedr.experimental
+package org.codefeedr.experimental.stats
 
 import java.text.SimpleDateFormat
 
-import org.apache.flink.api.common.state.{
-  StateTtlConfig,
-  ValueState,
-  ValueStateDescriptor
-}
-import org.apache.flink.api.common.time.Time
+import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.util.Collector
-import org.codefeedr.experimental.StatsObjects.{CommitStats, Extension, Stats}
+import org.codefeedr.experimental.stats.StatsObjects.{
+  CommitStats,
+  Extension,
+  Stats
+}
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 
 class CommitsStatsProcess extends ProcessFunction[Commit, (Long, Stats)] {
