@@ -75,7 +75,7 @@ class CommitsStatsProcess
         var modified = 0
 
         file.status match {
-          case Some("created")  => added = 1
+          case Some("added")    => added = 1
           case Some("removed")  => removed = 1
           case Some("modified") => modified = 1
           case _                =>
