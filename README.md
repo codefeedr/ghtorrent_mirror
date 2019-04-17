@@ -22,8 +22,35 @@ The stats object looks like this:
 ```
 
 In summary, every commit is keyed by date (e.g. `2019-01-01 09`) and then its stats are deduced and merged. Finally these stats are saved (and updated) in MongoDB.
+Example stats object:
 
-### 💗Commit enrichment
+```json
+{
+    "date" : "2013-02-06 11",
+    "commitStats" : {
+        "totalCommits" : 1,
+        "filesEdited" : [ 
+            {
+                "name" : "js",
+                "additions" : 28,
+                "deletions" : 23,
+                "added" : 0,
+                "removed" : 0,
+                "modified" : 1
+            }, 
+            {
+                "name" : "css",
+                "additions" : 1,
+                "deletions" : 2,
+                "added" : 0,
+                "removed" : 0,
+                "modified" : 1
+            }
+        ]
+    }
+}
+```
+### 💗 Commit enrichment
 The idea of this stage is to enrich Commit data with their corresponding PushEvent (if available). I.e. Add the `push_id` and `push_date` to a Commit.
 
 The commit is enriched in the following case class:
