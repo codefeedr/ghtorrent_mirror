@@ -5,7 +5,7 @@ The goal of this plugin is to mirror GHTorrent.
 
 ## Experimental
 
-### Hourly commit stats
+### 📊 Hourly commit stats
 This stage reduces all commits to a stats object keyed on their commit date (hourly).
 The stats object looks like this:
 ```scala
@@ -23,7 +23,7 @@ The stats object looks like this:
 
 In summary, every commit is keyed by date (e.g. `2019-01-01 09`) and then its stats are deduced and merged. Finally these stats are saved (and updated) in MongoDB.
 
-### Commit enrichment
+### 💗Commit enrichment
 The idea of this stage is to enrich Commit data with their corresponding PushEvent (if available). I.e. Add the `push_id` and `push_date` to a Commit.
 
 The commit is enriched in the following case class:
