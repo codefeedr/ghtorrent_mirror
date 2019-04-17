@@ -14,6 +14,7 @@ import org.codefeedr.experimental.stats.StatsObjects.{
 }
 import org.codefeedr.plugins.ghtorrent.protocol.GitHub.Commit
 
+/** This process function deduced and reduces a commit to its stats object. For every (hourly) date it keeps state.*/
 class CommitsStatsProcess
     extends KeyedProcessFunction[String, Commit, (Long, Stats)] {
   private var statsState: ValueState[Stats] = _
