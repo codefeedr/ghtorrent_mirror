@@ -35,7 +35,7 @@ object Main {
   val gollumStage = new GHTGolumEventStage(sideOutput = sideOutput)
   val memberShipStage = new GHTMemberShipEventStage(sideOutput = sideOutput)
   val publicStage = new GHTPublicEventStage(sideOutput = sideOutput)
-  val releaseStage = new GHRecordToReleaseEventStage(sideOutput = sideOutput)
+  val releaseStage = new GHTReleaseEventStage(sideOutput = sideOutput)
   val repoStage = new GHTRepositoryEventStage(sideOutput = sideOutput)
   val teamAddStage = new GHTTeamAddEventStage(sideOutput = sideOutput)
 
