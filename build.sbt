@@ -10,8 +10,8 @@ organization := "org.codefeedr"
 
 ThisBuild / scalaVersion := "2.12.8"
 
-val flinkVersion = "1.7.2"
-val codefeedrVersion = "0.1.2"
+val flinkVersion = "1.8.0"
+val codefeedrVersion = "0.1.3"
 
 val flinkDependencies = Seq(
   "org.apache.flink" %% "flink-scala" % flinkVersion % "provided",
