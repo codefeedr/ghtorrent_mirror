@@ -15,7 +15,7 @@ import org.codefeedr.experimental.stats.StatsObjects.{Stats, StatsFull}
 /** Stage which reduces stat
   * s and sends to MongoDB. */
 class CommitsStatsStage(name: String = "commit_stats")
-    extends TransformStage[Commit, Stats](Some(name)) {
+    extends TransformStage[Commit, StatsFull](Some(name)) {
 
   /** Processes the input stream of commits.
     *
