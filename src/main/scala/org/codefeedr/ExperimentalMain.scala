@@ -8,7 +8,7 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.experimental.enricher.EnrichCommitStage
 import org.codefeedr.experimental.stats.CommitsStatsStage
-import org.codefeedr.experimental.stats.StatsObjects.Stats
+import org.codefeedr.experimental.stats.StatsObjects.{Stats, StatsFull}
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchOutput
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages.GHTPushEventStage
@@ -43,7 +43,7 @@ object ExperimentalMain {
       .edge(inputStage, List(commitStage, pushStage))
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .edge(commitStage, commitsStatsStage)
-      .edge(commitsStatsStage, new ElasticSearchOutput[Stats]("commit_stats", "es_commit_stats"))
+      .edge(commitsStatsStage, new ElasticSearchOutput[StatsFull]("commit_stats", "es_commit_stats"))
       .build()
       .start(args)
   }

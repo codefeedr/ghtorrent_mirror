@@ -30,7 +30,7 @@ class CommitsStatsStage(name: String = "commit_stats")
       .keyBy(new KeyOnDate) // key on hourly date.
       .process(new CommitsStatsProcess) // reduce it.
       .keyBy(_._2.date) // key again on this hourly date.
-      .timeWindow(Time.minutes(10)) // every 10 minutes.
+      .timeWindow(Time.minutes(5)) // every 5 minutes.
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create())) // we trigger on processing time and purge the window.
       .aggregate(new EmitHighestTimestamp) // and emit the stats object with highest timestamp.
       .map { x =>
