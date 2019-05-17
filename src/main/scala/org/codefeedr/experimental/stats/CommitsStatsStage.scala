@@ -10,7 +10,7 @@ import org.codefeedr.stages.{OutputStage, TransformStage}
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.triggers.{ProcessingTimeTrigger, PurgingTrigger}
-import org.codefeedr.experimental.stats.StatsObjects.Stats
+import org.codefeedr.experimental.stats.StatsObjects.{Stats, StatsFull}
 
 /** Stage which reduces stat
   * s and sends to MongoDB. */
@@ -21,7 +21,7 @@ class CommitsStatsStage(name: String = "commit_stats")
     *
     * @param source the source to read from.
     */
-  override def transform(source: DataStream[Commit]): DataStream[Stats] = {
+  override def transform(source: DataStream[Commit]): DataStream[StatsFull] = {
     // We want to consider the processing time.
     this.getContext.env
       .setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
@@ -33,6 +33,13 @@ class CommitsStatsStage(name: String = "commit_stats")
       .timeWindow(Time.minutes(10)) // every 10 minutes.
       .trigger(PurgingTrigger.of(ProcessingTimeTrigger.create())) // we trigger on processing time and purge the window.
       .aggregate(new EmitHighestTimestamp) // and emit the stats object with highest timestamp.
+      .map { x =>
+      val format = new SimpleDateFormat("yyyy-MM-dd HH")
+      val dateString = x.date
+
+
+      StatsFull(format.parse(dateString), x.commitStats)
+    }
       //.addSink( // finally we send this to mongodb.
       //  new InsertAndReplaceMongoSink(
       //    Map("server" -> "mongodb://localhost:27017",
