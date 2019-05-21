@@ -7,12 +7,16 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.runtime.state.filesystem.FsStateBackend
 import org.codefeedr.buffer.KafkaBuffer
 import org.codefeedr.experimental.enricher.EnrichCommitStage
-import org.codefeedr.experimental.stats.CommitsStatsStage
+import org.codefeedr.experimental.stats.{CommitsStatsStage, ESSink}
 import org.codefeedr.experimental.stats.StatsObjects.{Stats, StatsFull}
 import org.codefeedr.pipeline.PipelineBuilder
 import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchOutput
 import org.codefeedr.plugins.ghtorrent.stages.GHTEventStages.GHTPushEventStage
-import org.codefeedr.plugins.ghtorrent.stages.{GHTCommitStage, GHTInputStage, SideOutput}
+import org.codefeedr.plugins.ghtorrent.stages.{
+  GHTCommitStage,
+  GHTInputStage,
+  SideOutput
+}
 
 object ExperimentalMain {
   // sideoutput configuration
@@ -43,7 +47,14 @@ object ExperimentalMain {
       .edge(inputStage, List(commitStage, pushStage))
       .edge(List(pushStage, commitStage), new EnrichCommitStage())
       .edge(commitStage, commitsStatsStage)
-      .edge(commitsStatsStage, new ElasticSearchOutput[StatsFull]("commit_stats", "es_commit_stats"))
+      .edge(
+        commitsStatsStage,
+        new ESSink[StatsFull](
+          "stats_commits",
+          "es_commit_stats",
+          config = Map("drop.invalid.message" -> "true",
+                       "behavior.on.malformed.documents" -> "ignore"))
+      )
       .build()
       .start(args)
   }
