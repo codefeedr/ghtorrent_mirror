@@ -11,6 +11,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.{
   RequestIndexer
 }
 import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink
+import org.apache.flink.util.ExceptionUtils
 import org.apache.http.HttpHost
 import org.apache.logging.log4j.scala.Logging
 import org.codefeedr.plugins.elasticsearch.stages.ElasticSearchSink
@@ -51,13 +52,18 @@ class ESSink[T <: Serializable with AnyRef: ClassTag: Manifest](
                              failure: Throwable,
                              restStatusCode: Int,
                              indexer: RequestIndexer): Unit = {
-        if (failure.isInstanceOf[EsRejectedExecutionException]) {
+        if (ExceptionUtils
+              .findThrowable(failure, classOf[EsRejectedExecutionException])
+              .isPresent) {
           indexer.add(action)
-        } else if (failure.isInstanceOf[ElasticsearchParseException]) {} else {
+        } else if (ExceptionUtils
+                     .findThrowable(failure,
+                                    classOf[ElasticsearchParseException])
+                     .isPresent) {} else {
           println("FAILURE: ")
           println(failure)
           println(restStatusCode)
-          throw failure
+          //throw failure
         }
       }
     })
